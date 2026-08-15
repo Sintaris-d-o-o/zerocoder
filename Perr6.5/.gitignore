@@ -1,0 +1,15 @@
+# Виртуальное окружение
+.venv/
+
+# Сгенерированные векторные индексы (пересоздаются командой ingest)
+storage/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Секреты
+.env
+.env.*
+!.env.example
