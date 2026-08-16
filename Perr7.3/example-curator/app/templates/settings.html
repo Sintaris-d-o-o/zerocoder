@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block content %}
+<h1 class="text-center">Settings</h1>
+<form method="POST">
+    <div class="form-group">
+        <label for="vk_api_id">VK API ID:</label>
+        <input type="text" name="vk_api_id" id="vk_api_id" class="form-control" value="{{ user.vk_api_id }}">
+    </div>
+    <div class="form-group">
+        <label for="vk_group_id">VK Group ID:</label>
+        <input type="text" name="vk_group_id" id="vk_group_id" class="form-control" value="{{ user.vk_group_id }}">
+    </div>
+    <button type="submit" class="btn btn-primary btn-block">Save</button>
+</form>
+{% endblock %}

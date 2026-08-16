@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}VK Stats{% endblock %}
+{% block content %}
+<h1 class="text-center">VK Stats</h1>
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>Parameter</th>
+            <th>Value</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for key, value in stats.items() %}
+        <tr>
+            <td>{{ key }}</td>
+            <td>{{ value }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
