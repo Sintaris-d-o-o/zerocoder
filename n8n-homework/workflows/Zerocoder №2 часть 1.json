@@ -1,0 +1,423 @@
+{
+  "name": "Zerocoder №2 часть 1",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -384,
+        -16
+      ],
+      "id": "84a39b01-e46d-4adb-8704-e8c6fb54ccbb",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "jsCode": "const urls = [\n  \"https://jsonplaceholder.typicode.com/todos\",\n  \"https://jsonplaceholder.typicode.com/posts\",\n  \"https://jsonplaceholder.typicode.com/users\",\n  \"https://jsonplaceholder.typicode.com/comments\"\n];\n\nreturn urls.map(url => ({\n  json: { url }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        272,
+        1088
+      ],
+      "id": "7a031ef9-5816-4582-9bef-39811db56d06",
+      "name": "вернуть JSON со списком URL"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        352,
+        -16
+      ],
+      "id": "00cada86-08ec-4a33-8619-b2dc58fe8145",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Установить тип запроса, id и postId(опционально)').item.json.resource }}",
+                    "rightValue": "comments",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "5987e634-39e4-42c2-b25c-d2473aeaeca7"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "comments"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "ignoreCase": true,
+          "renameFallbackOutput": "not comments"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        576,
+        -32
+      ],
+      "id": "31f2e76c-7481-4b01-ade8-8c7828b055b6",
+      "name": "Переключатель по URL"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "0a68b4b9-d5f0-46de-9514-0587904c5cb9",
+              "name": "resource",
+              "value": "comments",
+              "type": "string"
+            },
+            {
+              "id": "d13e257b-6070-4849-b636-850e90655ca2",
+              "name": "id",
+              "value": 500,
+              "type": "number"
+            },
+            {
+              "id": "4bcdb1ad-1268-4869-8c28-47102b5aa31e",
+              "name": "postId",
+              "value": "100",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -176,
+        -16
+      ],
+      "id": "736cf165-3ba4-40d7-b195-69b00da968ae",
+      "name": "Установить тип запроса, id и postId(опционально)"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "edf6f2d1-5619-4b7d-8694-315fb73e696a",
+              "name": "url",
+              "value": "=https://jsonplaceholder.typicode.com/{{$json.resource}}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        32,
+        -16
+      ],
+      "id": "472d5933-e529-45b5-88fc-7c067c8d205f",
+      "name": "сформировать URL"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1H-rPef0yvKS5MFlTtWa4KI_m4UAma38aLaT6wRztZNY",
+          "mode": "list",
+          "cachedResultName": "ДОМАШКИ Zerkoder - Результаты",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1H-rPef0yvKS5MFlTtWa4KI_m4UAma38aLaT6wRztZNY/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Zerocoder №2 часть 1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1H-rPef0yvKS5MFlTtWa4KI_m4UAma38aLaT6wRztZNY/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "userId",
+              "displayName": "userId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "title",
+              "displayName": "title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "body",
+              "displayName": "body",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1216,
+        -128
+      ],
+      "id": "5731d0e3-c40e-4ae5-b135-1021bff181a5",
+      "name": "добавить результаты в таблицу",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "j36NScu4bpqsYJKT",
+          "name": "Google Sheets account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "3a9bcde8-8f2f-47d0-861d-4588a81b7af7",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "={{ $('Установить тип запроса, id и postId(опционально)').item.json.id }}",
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "db0843ea-7083-412c-a476-60f59c48c169",
+              "leftValue": "={{ $json.postId }}",
+              "rightValue": "={{ $('Установить тип запроса, id и postId(опционально)').item.json.postId }}",
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        816,
+        -96
+      ],
+      "id": "f5c58941-0aed-41fb-bd24-65ec1d6d1bdc",
+      "name": "Отфильтровать по id и postId"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "3a9bcde8-8f2f-47d0-861d-4588a81b7af7",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "={{ $('Установить тип запроса, id и postId(опционально)').item.json.id }}",
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        848,
+        112
+      ],
+      "id": "28eea7a8-dab9-4b58-91e2-8471690ca7b7",
+      "name": "Отфильтровать по id"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Установить тип запроса, id и postId(опционально)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "вернуть JSON со списком URL": {
+      "main": [
+        []
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Переключатель по URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Переключатель по URL": {
+      "main": [
+        [
+          {
+            "node": "Отфильтровать по id и postId",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Отфильтровать по id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Установить тип запроса, id и postId(опционально)": {
+      "main": [
+        [
+          {
+            "node": "сформировать URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "сформировать URL": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "добавить результаты в таблицу": {
+      "main": [
+        []
+      ]
+    },
+    "Отфильтровать по id и postId": {
+      "main": [
+        [
+          {
+            "node": "добавить результаты в таблицу",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Отфильтровать по id": {
+      "main": [
+        [
+          {
+            "node": "добавить результаты в таблицу",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "5cc83d0f-1185-412f-9a30-e21326a361c2",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3dfb6978cf3399c7fbe84fecd9e1e067da1b213285b388b68830a40c8f3b0a6a"
+  },
+  "id": "rtL30zMZIv4nbOpt",
+  "tags": []
+}

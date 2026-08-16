@@ -1,0 +1,317 @@
+{
+  "name": "test1-content-factory",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "nodes": [
+    {
+      "id": "1",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1220,
+        220
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "9",
+      "name": "Read Rows",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -980,
+        220
+      ],
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "1UB8m4kZM1ohHOgTQ_ub-bYXHsKg2Uk1P-f1hw1hB2I4",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "0",
+          "mode": "id"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "2",
+      "name": "Validate Input Row",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -740,
+        220
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const out = [];\nfor (const item of items) {\n  const row = item.json;\n  const sourceUrl = (row.source_url ?? '').toString().trim();\n  const status = (row.status ?? '').toString().trim().toLowerCase();\n\n  if (!sourceUrl) continue;\n  if (status && status !== 'new') continue;\n\n  out.push({\n    json: {\n      ...row,\n      source_url: sourceUrl,\n      status: 'processing',\n      error: ''\n    }\n  });\n}\nreturn out;"
+      }
+    },
+    {
+      "id": "3",
+      "name": "Update Row Processing",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -700,
+        220
+      ],
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1UB8m4kZM1ohHOgTQ_ub-bYXHsKg2Uk1P-f1hw1hB2I4",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "0",
+          "mode": "id"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "source_url"
+          ],
+          "value": {
+            "source_url": "={{$json.source_url}}",
+            "status": "processing",
+            "error": ""
+          }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "4",
+      "name": "Fetch Source HTML",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -460,
+        220
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{$json.source_url}}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          },
+          "timeout": 60000
+        }
+      }
+    },
+    {
+      "id": "5",
+      "name": "Extract Raw Text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -220,
+        220
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "language": "javaScript",
+        "jsCode": "const html = ($json.body ?? $json.data ?? '').toString();\nconst original = { ...$json };\n\nconst text = html\n  .replace(/<script[\\s\\S]*?<\\/script>/gi, ' ')\n  .replace(/<style[\\s\\S]*?<\\/style>/gi, ' ')\n  .replace(/<noscript[\\s\\S]*?<\\/noscript>/gi, ' ')\n  .replace(/<[^>]+>/g, ' ')\n  .replace(/&nbsp;/gi, ' ')\n  .replace(/&amp;/gi, '&')\n  .replace(/&lt;/gi, '<')\n  .replace(/&gt;/gi, '>')\n  .replace(/\\s+/g, ' ')\n  .trim();\n\nconst rawText = text.slice(0, 18000);\n\nreturn {\n  json: {\n    ...original,\n    raw_text: rawText\n  }\n};"
+      }
+    },
+    {
+      "id": "6",
+      "name": "Generate Telegram Post (OpenAI)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        20,
+        220
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/responses",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.OPENAI_API_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={\n  \"model\": \"{{$env.OPENAI_MODEL || 'gpt-4o-mini'}}\",\n  \"input\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"Ты редактор Telegram-канала \\\"ИИ+ автоматизация бизнеса\\\". Пиши по-русски, дружелюбно и экспертно, без официоза. Создай пост длиной 1500-2000 символов. Структура: 1) вовлекающее введение, 2) основная часть с практической ценностью для предпринимателей/экспертов, 3) вывод и вопрос к аудитории. Не пиши рекламных клише.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Источник: {{$json.source_url}}\\n\\nКонтент статьи (очищенный):\\n{{$json.raw_text}}\"\n    }\n  ]\n}"
+      }
+    },
+    {
+      "id": "7",
+      "name": "Normalize OpenAI Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        260,
+        220
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "language": "javaScript",
+        "jsCode": "const data = $json;\nconst now = new Date().toISOString();\n\nlet postText = '';\n\nif (Array.isArray(data.output)) {\n  const chunks = [];\n  for (const block of data.output) {\n    if (!Array.isArray(block.content)) continue;\n    for (const part of block.content) {\n      if (typeof part.text === 'string' && part.text.trim()) {\n        chunks.push(part.text.trim());\n      }\n    }\n  }\n  postText = chunks.join('\\n\\n').trim();\n}\n\nif (!postText && typeof data.output_text === 'string') {\n  postText = data.output_text.trim();\n}\n\nif (!postText) {\n  throw new Error('OpenAI response did not contain post text');\n}\n\nreturn {\n  json: {\n    ...data,\n    post_text: postText,\n    status: 'done',\n    processed_at: now,\n    error: ''\n  }\n};"
+      }
+    },
+    {
+      "id": "8",
+      "name": "Update Row Done",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        500,
+        220
+      ],
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1UB8m4kZM1ohHOgTQ_ub-bYXHsKg2Uk1P-f1hw1hB2I4",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "0",
+          "mode": "id"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "source_url"
+          ],
+          "value": {
+            "source_url": "={{$json.source_url}}",
+            "raw_text": "={{$json.raw_text}}",
+            "post_text": "={{$json.post_text}}",
+            "status": "done",
+            "processed_at": "={{$json.processed_at}}",
+            "error": ""
+          }
+        },
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Read Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Rows": {
+      "main": [
+        [
+          {
+            "node": "Validate Input Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Input Row": {
+      "main": [
+        [
+          {
+            "node": "Update Row Processing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Row Processing": {
+      "main": [
+        [
+          {
+            "node": "Fetch Source HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Source HTML": {
+      "main": [
+        [
+          {
+            "node": "Extract Raw Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Raw Text": {
+      "main": [
+        [
+          {
+            "node": "Generate Telegram Post (OpenAI)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Telegram Post (OpenAI)": {
+      "main": [
+        [
+          {
+            "node": "Normalize OpenAI Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize OpenAI Output": {
+      "main": [
+        [
+          {
+            "node": "Update Row Done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

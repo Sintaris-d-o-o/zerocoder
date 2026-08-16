@@ -1,0 +1,2474 @@
+{
+  "updatedAt": "2026-04-06T19:08:38.557Z",
+  "createdAt": "2026-04-02T08:15:39.677Z",
+  "id": "VDNz9XhtosrUgQsq",
+  "name": "Zerocoder N3 HR Assistant - Candidate Processing",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyX",
+              "value": 15,
+              "unit": "minutes"
+            }
+          ]
+        },
+        "simple": false,
+        "filters": {
+          "q": "has:attachment filename:pdf",
+          "readStatus": "unread"
+        },
+        "options": {
+          "dataPropertyAttachmentsPrefixName": "attachment_",
+          "downloadAttachments": true
+        }
+      },
+      "id": "00402898-c2d2-45d2-b8c7-fb53d9839920",
+      "name": "Gmail Trigger",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1,
+      "position": [
+        464,
+        -176
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "OM7qAUKDjlYrrRsI",
+          "name": "Gmail account devstar"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "attachment_0",
+        "options": {}
+      },
+      "id": "57069729-572b-4534-b3f6-c39b37547dc8",
+      "name": "Extract PDF Text",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        1136,
+        -96
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1-0001",
+              "name": "pdfText",
+              "value": "={{ $json.text ? $json.text.slice(0, 20000) : '' }}",
+              "type": "string"
+            },
+            {
+              "id": "a1-0002",
+              "name": "emailText",
+              "value": "={{ $json.text ? $json.text.slice(0, 20000) : '' }}",
+              "type": "string"
+            },
+            {
+              "id": "a1-0003",
+              "name": "emailFrom",
+              "value": "={{ $('Get Message').first().json.from }}",
+              "type": "string"
+            },
+            {
+              "id": "a1-0004",
+              "name": "emailSubject",
+              "value": "={{ $('Get Message').first().json.subject }}",
+              "type": "string"
+            },
+            {
+              "id": "a1-0005",
+              "name": "messageId",
+              "value": "={{ $('Get Message').first().json.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "0b8372aa-888e-4948-90b0-2ac5748f1b7f",
+      "name": "Prepare PDF Text",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1328,
+        -32
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "gpt-4o"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are an HR data extraction assistant. \nCheck e-mail and ser\nExtract structured candidate information from the resume text. Return ONLY valid JSON with these exact fields: cv(boolean, true if this mail cv or false if not), \nfull_name (string), \nsex (string: муж/жен/не указано), \nbirth_date (string YYYY-MM-DD or null), \ncontact_phone (string or null), \nemail (string or null), \ncountry (string or null), \ncity (string or null), \ncitizenship (string or null), \nposition (string), \nemployment (string or null), \nexperience (integer years or 0), \nskills (array of strings), \nsalary (integer monthly RUB or null). \n\nUse null for missing fields."
+            },
+            {
+              "content": "=Extract data from this resume:\n{{ $json.emailText }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "temperature": 0.1
+        }
+      },
+      "id": "6408d093-e712-437b-9b90-2463c88c893e",
+      "name": "Extract Candidate Info",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        1488,
+        208
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "MHkmfl85kwu22LT8",
+          "name": "OpenAI SINTARIS"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// runOnceForEachItem\nconst j = $input.item.json;\n\n// 1 — extract raw text from OpenAI v2.1 response\nlet rawText = '';\nconst t = j?.output?.[0]?.content?.[0]?.text;\nif (typeof t === 'string' && t.trim()) rawText = t.trim();\nelse if (typeof j?.content === 'string' && j.content.trim()) rawText = j.content.trim();\nif (!rawText) throw new Error('Empty OpenAI response. Keys: ' + Object.keys(j || {}).join(', '));\n\n// 2 — extract JSON block\nconst s = rawText.indexOf('{');\nconst e = rawText.lastIndexOf('}');\nif (s < 0 || e <= s) throw new Error('No JSON found. Snippet: ' + rawText.slice(0, 200));\nlet parsed;\ntry { parsed = JSON.parse(rawText.slice(s, e + 1)); }\ncatch(err) { throw new Error('JSON.parse failed: ' + err.message); }\n\n// 3 — whitelist candidate fields\nconst candidate = {\n  cv:            !!parsed.cv,\n  full_name:     String(parsed.full_name     || ''),\n  sex:           String(parsed.sex           || ''),\n  birth_date:    parsed.birth_date           || null,\n  contact_phone: parsed.contact_phone        || null,\n  email:         String(parsed.email         || ''),\n  country:       parsed.country              || null,\n  city:          parsed.city                 || null,\n  citizenship:   parsed.citizenship          || null,\n  position:      String(parsed.position      || ''),\n  employment:    parsed.employment           || null,\n  experience:    parseInt(parsed.experience) || 0,\n  skills:        Array.isArray(parsed.skills) ? parsed.skills.map(s => String(s)) : [],\n  salary:        parsed.salary ? parseInt(parsed.salary) : null\n};\n\n// 4 — email metadata from Prepare PDF Text (cross-node ref, matches by item index)\nconst meta = $('Prepare PDF Text').item.json;\nconst emailFrom    = String(meta.emailFrom    || '');\nconst emailSubject = String(meta.emailSubject || '');\nconst messageId    = String(meta.messageId    || '');\n\nreturn { json: JSON.parse(JSON.stringify({\n  cv: candidate.cv, candidate, emailFrom, emailSubject, messageId\n})) };"
+      },
+      "id": "ab77c1a1-7a07-4542-84c1-6af94fd07b14",
+      "name": "Parse Candidate JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1840,
+        -16
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1dyYqjXrl88VZ3U_CAPsGEocIYXVtljDn-VMNipKZuaQ",
+          "mode": "list",
+          "cachedResultName": "Zerocoder N3",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1dyYqjXrl88VZ3U_CAPsGEocIYXVtljDn-VMNipKZuaQ/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Vacancies",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1dyYqjXrl88VZ3U_CAPsGEocIYXVtljDn-VMNipKZuaQ/edit#gid=0"
+        },
+        "options": {}
+      },
+      "id": "5ce95843-5cb1-4fea-9baa-35a6153a5ed3",
+      "name": "Get Vacancies",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        2304,
+        -96
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "j36NScu4bpqsYJKT",
+          "name": "Google Sheets account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// runOnceForAllItems — items = all vacancy rows from Get Vacancies\n// runs ONCE per candidate batch, not once per vacancy row\nconst parsed = $('Parse Candidate JSON').first().json;\nconst candidate  = parsed.candidate;\nconst emailFrom  = parsed.emailFrom;\nconst emailSubject = parsed.emailSubject;\nconst messageId  = parsed.messageId;\n\nconst vacancies = $input.all()\n  .map((item, index) => ({\n    row_number: index + 2,\n    title:      item.json['Должность'] || item.json['title']       || '',\n    description: [\n      item.json['Описание']    || item.json['description']  || '',\n      item.json['Требования']  || item.json['requirements'] || '',\n      item.json['Зарплата']    ? 'Зарплата: ' + item.json['Зарплата'] : ''\n    ].filter(Boolean).join('. ')\n  }))\n  .filter(v => v.title);\n\nif (vacancies.length === 0) {\n  throw new Error('No vacancies found in Google Sheets. Please fill the Vacancies sheet.');\n}\n\nconst userContent = JSON.stringify({ candidate, vacancies });\nreturn [{ json: { userContent, candidate, vacancies, emailFrom, emailSubject, messageId } }];"
+      },
+      "id": "3572a9c4-d984-44a9-8b66-de29125448a9",
+      "name": "Prepare Matching",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2512,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "gpt-4o"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Ты — матчинг-агент вакансий. По данным кандидата найди подходящие вакансии из переданного списка, сопоставляя должность, скиллы, опыт, тип занятости, локацию и зарплату. Относись мягко: не отбрасывай жёстко, снижай балл.\nНормализация: lower-case, транслитерация (frontend~фронтенд), синонимы (js=javascript, ts=typescript).\nСемьи должностей: frontend, backend, fullstack, mobile, devops, data, qa, manager.\nСениорность: 0-1→junior, 2-4→middle, 5-8→senior, 9+→lead.\nСкоринг 0-100: роль 40, скиллы 30, опыт 10, занятость 5, локация 5, зарплата 5, прочее 5.\nПорог: >=60→matches, 45-59→near_misses, <45→notable_non_matches.\nВерни все на русском языке и ТОЛЬКО в JSON без пояснений:\n{\"candidate_summary\":{\"full_name\":\"\",\"position_raw\":\"\",\"position_family\":\"\",\"normalized_skills\":[],\"experience_years\":0,\"seniority\":\"\",\"employment\":\"\",\"city\":\"\",\"country\":\"\",\"salary_expectation_rub_per_month\":0,\"contacts\":\"\"},\"matches\":[{\"row_number\":0,\"title\":\"\",\"family\":\"\",\"score\":0,\"breakdown\":{\"role_match_40\":0,\"skill_overlap_30\":0,\"experience_10\":0,\"employment_5\":0,\"location_5\":0,\"salary_5\":0,\"other_5\":0},\"reasons\":[],\"risks\":[]}],\"near_misses\":[],\"notable_non_matches\":[]}"
+            },
+            {
+              "content": "={{$json.userContent}}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "id": "7bf2b779-ebf2-4b06-8563-e83eed04d944",
+      "name": "Run Matching",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        2720,
+        0
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "MHkmfl85kwu22LT8",
+          "name": "OpenAI SINTARIS"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// runOnceForAllItems\nconst allItems = $input.all();\nconst results  = [];\n\nfor (const item of allItems) {\n  const j = item.json;\n\n  // 1 — extract raw text from OpenAI v2.1 response\n  let rawText = '';\n  const t = j?.output?.[0]?.content?.[0]?.text;\n  if (typeof t === 'string' && t.trim()) rawText = t.trim();\n  else if (typeof j?.content === 'string' && j.content.trim()) rawText = j.content.trim();\n  if (!rawText) throw new Error('Empty OpenAI response. Input keys: ' + Object.keys(j || {}).join(', '));\n\n  // 2 — extract JSON block\n  const s = rawText.indexOf('{');\n  const e = rawText.lastIndexOf('}');\n  if (s < 0 || e <= s) throw new Error('No JSON object found. Text snippet: ' + rawText.slice(0, 200));\n  let parsed;\n  try { parsed = JSON.parse(rawText.slice(s, e + 1)); }\n  catch(err) { throw new Error('JSON.parse failed: ' + err.message + ' | snippet: ' + rawText.slice(s, s + 200)); }\n\n  // 3 — build candidateSummary\n  const sum = parsed.candidate_summary || {};\n  const candidateSummary = {\n    full_name:                        String(sum.full_name || ''),\n    position_raw:                     String(sum.position_raw || ''),\n    position_family:                  String(sum.position_family || ''),\n    normalized_skills:                Array.isArray(sum.normalized_skills) ? sum.normalized_skills.map(String) : [],\n    experience_years:                 parseInt(sum.experience_years) || 0,\n    seniority:                        String(sum.seniority || ''),\n    employment:                       String(sum.employment || ''),\n    city:                             String(sum.city || ''),\n    country:                          String(sum.country || ''),\n    salary_expectation_rub_per_month: parseInt(sum.salary_expectation_rub_per_month) || 0,\n    contacts:                         String(sum.contacts || '')\n  };\n\n  const cleanMatch = m => ({\n    row_number: parseInt(m.row_number) || 0,\n    title:      String(m.title  || ''),\n    family:     String(m.family || ''),\n    score:      parseInt(m.score) || 0,\n    reasons:    Array.isArray(m.reasons) ? m.reasons.map(String) : [],\n    risks:      Array.isArray(m.risks)   ? m.risks.map(String)   : []\n  });\n\n  const qualifiedMatches = (parsed.matches    || []).map(cleanMatch).filter(m => m.score >= 60);\n  const nearMisses       = (parsed.near_misses || []).map(cleanMatch);\n\n  const prev      = $('Prepare Matching').first().json;\n  const candidate = (prev && prev.candidate) ? JSON.parse(JSON.stringify(prev.candidate)) : {};\n  const emailFrom = String((prev && prev.emailFrom) || '');\n  const messageId = String((prev && prev.messageId) || '');\n\n  // 4 — flat output matching sheet columns exactly\n  results.push({ json: JSON.parse(JSON.stringify({\n    hasMatch:            qualifiedMatches.length >= 1,\n    cv:                  candidate.cv ?? false,\n    full_name:           candidate.full_name    || candidateSummary.full_name || '',\n    sex:                 candidate.sex          || '',\n    birth_date:          candidate.birth_date   || '',\n    email:               candidate.email        || '',\n    phone:               candidate.contact_phone || '',\n    city:                candidate.city         || candidateSummary.city    || '',\n    country:             candidate.country      || candidateSummary.country || '',\n    citizenship:         candidate.citizenship  || '',\n    position:            candidate.position     || candidateSummary.position_raw || '',\n    experience_years:    candidateSummary.experience_years || candidate.experience || 0,\n    employment:          candidate.employment   || candidateSummary.employment || '',\n    skills:              Array.isArray(candidate.skills) ? candidate.skills.join(', ') : '',\n    salary_expectation:  candidateSummary.salary_expectation_rub_per_month || candidate.salary || 0,\n    matched_vacancies:   qualifiedMatches.map(m => m.title).join(', '),\n    match_reasons:       qualifiedMatches.map(m => m.title + ': ' + m.reasons.join('; ')).join(' | '),\n    near_miss_vacancies: nearMisses.map(m => m.title).join(', '),\n    rejection_reasons:   nearMisses.map(m => m.title + ': ' + m.risks.join('; ')).join(' | '),\n    email_from:          emailFrom,\n    message_id:          messageId,\n    emailFrom:           emailFrom,\n    messageId:           messageId,\n    matches:             JSON.stringify(qualifiedMatches),\n    nearMisses:          JSON.stringify(nearMisses),\n    candidateSummary:    JSON.stringify(candidateSummary),\n    candidate:           JSON.stringify(candidate)\n  })) });\n}\n\nreturn results;"
+      },
+      "id": "a7baf6e9-aed3-4dc8-a8fc-770b0c7fac8e",
+      "name": "Parse Matching Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3024,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1dyYqjXrl88VZ3U_CAPsGEocIYXVtljDn-VMNipKZuaQ",
+          "mode": "list",
+          "cachedResultName": "Zerocoder N3",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1dyYqjXrl88VZ3U_CAPsGEocIYXVtljDn-VMNipKZuaQ/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 843012480,
+          "mode": "list",
+          "cachedResultName": "candidates",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1dyYqjXrl88VZ3U_CAPsGEocIYXVtljDn-VMNipKZuaQ/edit#gid=843012480"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "hasMatch",
+              "displayName": "hasMatch",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "cv",
+              "displayName": "cv",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "full_name",
+              "displayName": "full_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "sex",
+              "displayName": "sex",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "birth_date",
+              "displayName": "birth_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "phone",
+              "displayName": "phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "city",
+              "displayName": "city",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "country",
+              "displayName": "country",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "citizenship",
+              "displayName": "citizenship",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "position",
+              "displayName": "position",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "experience_years",
+              "displayName": "experience_years",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "employment",
+              "displayName": "employment",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "skills",
+              "displayName": "skills",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "salary_expectation",
+              "displayName": "salary_expectation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "matched_vacancies",
+              "displayName": "matched_vacancies",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "match_reasons",
+              "displayName": "match_reasons",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "near_miss_vacancies",
+              "displayName": "near_miss_vacancies",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "rejection_reasons",
+              "displayName": "rejection_reasons",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "email_from",
+              "displayName": "email_from",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "message_id",
+              "displayName": "message_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "matches",
+              "displayName": "matches",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "nearMisses",
+              "displayName": "nearMisses",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "candidateSummary",
+              "displayName": "candidateSummary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "emailFrom",
+              "displayName": "emailFrom",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "messageId",
+              "displayName": "messageId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "candidate",
+              "displayName": "candidate",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "fa0d3e07-7c95-4a98-b7b4-3eecc857207a",
+      "name": "Save Candidate",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        3312,
+        -32
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "j36NScu4bpqsYJKT",
+          "name": "Google Sheets account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.hasMatch}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "95fb7dd4-5c8a-4861-8b94-58c023a1e132",
+      "name": "Has Match?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        3328,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 1,
+        "unit": "minutes"
+      },
+      "id": "f34e275e-fade-46b7-b767-ddb64aecfbfd",
+      "name": "Wait Invite",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        3568,
+        160
+      ],
+      "webhookId": "b8c5e375-644d-4ae2-8c9b-33b0aa233e82"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Get Message').first().json.from.value[0].address }}",
+        "subject": "=Ваша заявка рассмотрена — {{$json.candidateSummary.position_raw || $json.candidate.position}}",
+        "message": "=<p>Здравствуйте, <strong>{{$json.candidateSummary.full_name || $json.candidate.full_name}}</strong>!</p><p>Ваша заявка на должность <strong>{{$json.candidateSummary.position_raw || $json.candidate.position}}</strong> была рассмотрена нашими сотрудниками — она нам понравилась.</p><p>В скором времени мы свяжемся с вами для проведения интервью.</p><p>С уважением,<br>HR-команда</p>",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "512227df-17ab-4ce3-a4c9-5d381e8b8ec5",
+      "name": "Send Invite",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        3744,
+        -16
+      ],
+      "webhookId": "23779e82-340a-45d0-8682-a471036b46d7",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "OM7qAUKDjlYrrRsI",
+          "name": "Gmail account devstar"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{ $('Parse Matching Result').first().json.messageId }}",
+        "labelIds": [
+          "STARRED"
+        ]
+      },
+      "id": "ae1ee205-c8ce-402e-92bb-496758f5643b",
+      "name": "Label Processed Invite",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        3984,
+        144
+      ],
+      "webhookId": "413f0982-54ea-4df3-97ce-ff0e1c350899",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "OM7qAUKDjlYrrRsI",
+          "name": "Gmail account devstar"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 3,
+        "unit": "minutes"
+      },
+      "id": "37028bd9-0f53-4279-8cd5-e8c8a11f3a7f",
+      "name": "Wait Reject",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        3584,
+        432
+      ],
+      "webhookId": "be71febe-a023-4f0c-a9cd-fd054d3b30c9"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Get Message').first().json.from.value[0].address }}",
+        "subject": "=Ответ на вашу заявку — {{$json.candidateSummary.position_raw || $json.candidate.position}}",
+        "message": "=<p>Здравствуйте, <strong>{{$json.candidateSummary.full_name || $json.candidate.full_name}}</strong>!</p><p>К сожалению, мы вынуждены отказать вам, так как у нас нет подходящих вакансий на данный момент.</p><p>Мы сохранили ваше резюме и при появлении подходящих вакансий обязательно свяжемся с вами.</p><p>С уважением,<br>HR-команда</p>",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "38a147ec-262b-4a05-8043-a869732929df",
+      "name": "Send Reject",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        3776,
+        304
+      ],
+      "webhookId": "3d7f423a-0caf-40ff-90fd-3af5d8641eb2",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "OM7qAUKDjlYrrRsI",
+          "name": "Gmail account devstar"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{ $('Parse Matching Result').first().json.messageId }}",
+        "labelIds": [
+          "STARRED"
+        ]
+      },
+      "id": "6b31b95b-7650-41db-b156-334e56082dfe",
+      "name": "Label Processed Reject",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        4016,
+        448
+      ],
+      "webhookId": "bcbc591a-7c7b-4910-8cfe-ea6ac78d3c39",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "OM7qAUKDjlYrrRsI",
+          "name": "Gmail account devstar"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// runOnceForEachItem — tag PDF key, pass binary through (no copy/rename)\nconst j = $input.item.json;\nconst binary = $input.item.binary ?? {};\n\n// Find first PDF key using only metadata (never touch binary data itself)\nconst pdfKey = Object.keys(binary).find(k =>\n  k.startsWith('attachment') && (\n    (binary[k].mimeType ?? '').includes('pdf') ||\n    (binary[k].fileName ?? '').toLowerCase().endsWith('.pdf')\n  )\n) ?? null;\n\nreturn {\n  json: {\n    hasPDF: !!pdfKey,\n    pdfBinaryKey: pdfKey ?? '',\n    fileName: pdfKey ? (binary[pdfKey].fileName ?? pdfKey) : '',\n    emailId: j.id ?? '',\n    threadId: j.threadId ?? '',\n    emailFrom: j.from?.value?.[0]?.address ?? '',\n    emailFromName: j.from?.value?.[0]?.name ?? '',\n    subject: j.subject ?? '',\n    messageId: j.messageId ?? '',\n    emailText: j.text ?? ''\n  },\n  binary: $input.item.binary\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        976,
+        -192
+      ],
+      "id": "fcbd0aea-a289-4cd2-9ebd-fff2fabc201b",
+      "name": "extract pdf"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "fe2821a9-a67f-40cb-9fe9-1314b90b2e6b",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        704,
+        112
+      ],
+      "id": "442e6af9-4340-406b-be2c-aae282cb2726",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "c1414d2d-35f8-40b7-a37b-1de90fe0b029",
+              "leftValue": "={{ $json.cv }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2080,
+        192
+      ],
+      "id": "463015cd-df3a-459a-9a82-8306b80bfd39",
+      "name": "If1"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        352
+      ],
+      "id": "e5d8c053-b6bb-4dbd-8163-123ec917c81e",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "limit": 5,
+        "simple": false,
+        "filters": {
+          "q": "has:attachment filename:pdf",
+          "readStatus": "unread"
+        },
+        "options": {
+          "dataPropertyAttachmentsPrefixName": "attachment_",
+          "downloadAttachments": true
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        448,
+        192
+      ],
+      "id": "b34fecfe-577c-4475-8886-20c847b4ebe0",
+      "name": "Get many messages",
+      "webhookId": "776fa731-772f-43fe-a6ce-af5e3ddac2c2",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "OM7qAUKDjlYrrRsI",
+          "name": "Gmail account devstar"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "markAsRead",
+        "messageId": "={{ $('Parse Matching Result').first().json.messageId }}"
+      },
+      "id": "751f4612-3304-439d-9de5-d67539d7604a",
+      "name": "Mark as Read (Invite)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        4224,
+        144
+      ],
+      "webhookId": "72655915-8dca-444a-bc3a-a8666afa576f",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "OM7qAUKDjlYrrRsI",
+          "name": "Gmail account devstar"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "markAsRead",
+        "messageId": "={{ $('Parse Matching Result').first().json.messageId }}"
+      },
+      "id": "88340f18-eec5-4786-903e-ea158a9c4131",
+      "name": "Mark as Read (Reject)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        4272,
+        448
+      ],
+      "webhookId": "b0ba2c7f-6c6f-4ca2-97b5-a07ad347a508",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "OM7qAUKDjlYrrRsI",
+          "name": "Gmail account devstar"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "markAsRead",
+        "messageId": "={{ $('Parse Matching Result').first().json.messageId }}"
+      },
+      "id": "98b95ade-3cab-4382-8b6a-cdf25485ad05",
+      "name": "Mark as Read (Reject)1",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1072,
+        368
+      ],
+      "webhookId": "b0ba2c7f-6c6f-4ca2-97b5-a07ad347a508",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "OM7qAUKDjlYrrRsI",
+          "name": "Gmail account devstar"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "messageId": "={{ $json.id }}",
+        "simple": false,
+        "options": {
+          "dataPropertyAttachmentsPrefixName": "attachment_",
+          "downloadAttachments": true
+        }
+      },
+      "id": "c3a43f03-b2b4-48c2-8123-970a451262fc",
+      "name": "Get Message",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        928,
+        0
+      ],
+      "webhookId": "2ada7307-20b3-4bb6-86f6-b4cdde22e3e9",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "OM7qAUKDjlYrrRsI",
+          "name": "Gmail account devstar"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "id": "f3d50c52-3cd4-4c23-9609-e5eb2347be2d",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        176,
+        -96
+      ]
+    }
+  ],
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Candidate Info": {
+      "main": [
+        [
+          {
+            "node": "Parse Candidate JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Candidate JSON": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Vacancies": {
+      "main": [
+        [
+          {
+            "node": "Prepare Matching",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Matching": {
+      "main": [
+        [
+          {
+            "node": "Parse Matching Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Matching Result": {
+      "main": [
+        [
+          {
+            "node": "Save Candidate",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Has Match?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Match?": {
+      "main": [
+        [
+          {
+            "node": "Wait Invite",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait Reject",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait Invite": {
+      "main": [
+        [
+          {
+            "node": "Send Invite",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Invite": {
+      "main": [
+        [
+          {
+            "node": "Label Processed Invite",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait Reject": {
+      "main": [
+        [
+          {
+            "node": "Send Reject",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Reject": {
+      "main": [
+        [
+          {
+            "node": "Label Processed Reject",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare PDF Text": {
+      "main": [
+        [
+          {
+            "node": "Extract Candidate Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Matching": {
+      "main": [
+        [
+          {
+            "node": "Run Matching",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Get Vacancies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Get many messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many messages": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract PDF Text": {
+      "main": [
+        [
+          {
+            "node": "Prepare PDF Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Get Message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark as Read (Reject)1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Label Processed Invite": {
+      "main": [
+        [
+          {
+            "node": "Mark as Read (Invite)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Label Processed Reject": {
+      "main": [
+        [
+          {
+            "node": "Mark as Read (Reject)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Message": {
+      "main": [
+        [
+          {
+            "node": "Extract PDF Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get many messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "staticData": {
+    "node:Gmail Trigger": {
+      "lastTimeChecked": 1775486966,
+      "possibleDuplicates": [
+        "19d63451f69582ae"
+      ]
+    },
+    "node:Schedule Trigger": {
+      "recurrenceRules": []
+    }
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "versionId": "c125cf94-1057-4232-8927-420c75d8f6ef",
+  "activeVersionId": "c125cf94-1057-4232-8927-420c75d8f6ef",
+  "versionCounter": 296,
+  "triggerCount": 1,
+  "tags": [],
+  "activeVersion": {
+    "updatedAt": "2026-04-06T19:08:38.561Z",
+    "createdAt": "2026-04-06T19:08:38.561Z",
+    "versionId": "c125cf94-1057-4232-8927-420c75d8f6ef",
+    "workflowId": "VDNz9XhtosrUgQsq",
+    "nodes": [
+      {
+        "parameters": {
+          "pollTimes": {
+            "item": [
+              {
+                "mode": "everyX",
+                "value": 15,
+                "unit": "minutes"
+              }
+            ]
+          },
+          "simple": false,
+          "filters": {
+            "q": "has:attachment filename:pdf",
+            "readStatus": "unread"
+          },
+          "options": {
+            "dataPropertyAttachmentsPrefixName": "attachment_",
+            "downloadAttachments": true
+          }
+        },
+        "id": "00402898-c2d2-45d2-b8c7-fb53d9839920",
+        "name": "Gmail Trigger",
+        "type": "n8n-nodes-base.gmailTrigger",
+        "typeVersion": 1,
+        "position": [
+          464,
+          -176
+        ],
+        "credentials": {
+          "gmailOAuth2": {
+            "id": "OM7qAUKDjlYrrRsI",
+            "name": "Gmail account devstar"
+          }
+        },
+        "disabled": true
+      },
+      {
+        "parameters": {
+          "operation": "pdf",
+          "binaryPropertyName": "attachment_0",
+          "options": {}
+        },
+        "id": "57069729-572b-4534-b3f6-c39b37547dc8",
+        "name": "Extract PDF Text",
+        "type": "n8n-nodes-base.extractFromFile",
+        "typeVersion": 1,
+        "position": [
+          1136,
+          -96
+        ]
+      },
+      {
+        "parameters": {
+          "assignments": {
+            "assignments": [
+              {
+                "id": "a1-0001",
+                "name": "pdfText",
+                "value": "={{ $json.text ? $json.text.slice(0, 20000) : '' }}",
+                "type": "string"
+              },
+              {
+                "id": "a1-0002",
+                "name": "emailText",
+                "value": "={{ $json.text ? $json.text.slice(0, 20000) : '' }}",
+                "type": "string"
+              },
+              {
+                "id": "a1-0003",
+                "name": "emailFrom",
+                "value": "={{ $('Get Message').first().json.from }}",
+                "type": "string"
+              },
+              {
+                "id": "a1-0004",
+                "name": "emailSubject",
+                "value": "={{ $('Get Message').first().json.subject }}",
+                "type": "string"
+              },
+              {
+                "id": "a1-0005",
+                "name": "messageId",
+                "value": "={{ $('Get Message').first().json.id }}",
+                "type": "string"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "0b8372aa-888e-4948-90b0-2ac5748f1b7f",
+        "name": "Prepare PDF Text",
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.4,
+        "position": [
+          1328,
+          -32
+        ]
+      },
+      {
+        "parameters": {
+          "modelId": {
+            "__rl": true,
+            "value": "gpt-4o",
+            "mode": "list",
+            "cachedResultName": "gpt-4o"
+          },
+          "responses": {
+            "values": [
+              {
+                "role": "system",
+                "content": "You are an HR data extraction assistant. \nCheck e-mail and ser\nExtract structured candidate information from the resume text. Return ONLY valid JSON with these exact fields: cv(boolean, true if this mail cv or false if not), \nfull_name (string), \nsex (string: муж/жен/не указано), \nbirth_date (string YYYY-MM-DD or null), \ncontact_phone (string or null), \nemail (string or null), \ncountry (string or null), \ncity (string or null), \ncitizenship (string or null), \nposition (string), \nemployment (string or null), \nexperience (integer years or 0), \nskills (array of strings), \nsalary (integer monthly RUB or null). \n\nUse null for missing fields."
+              },
+              {
+                "content": "=Extract data from this resume:\n{{ $json.emailText }}"
+              }
+            ]
+          },
+          "builtInTools": {},
+          "options": {
+            "temperature": 0.1
+          }
+        },
+        "id": "6408d093-e712-437b-9b90-2463c88c893e",
+        "name": "Extract Candidate Info",
+        "type": "@n8n/n8n-nodes-langchain.openAi",
+        "typeVersion": 2.1,
+        "position": [
+          1488,
+          208
+        ],
+        "credentials": {
+          "openAiApi": {
+            "id": "MHkmfl85kwu22LT8",
+            "name": "OpenAI SINTARIS"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "mode": "runOnceForEachItem",
+          "jsCode": "// runOnceForEachItem\nconst j = $input.item.json;\n\n// 1 — extract raw text from OpenAI v2.1 response\nlet rawText = '';\nconst t = j?.output?.[0]?.content?.[0]?.text;\nif (typeof t === 'string' && t.trim()) rawText = t.trim();\nelse if (typeof j?.content === 'string' && j.content.trim()) rawText = j.content.trim();\nif (!rawText) throw new Error('Empty OpenAI response. Keys: ' + Object.keys(j || {}).join(', '));\n\n// 2 — extract JSON block\nconst s = rawText.indexOf('{');\nconst e = rawText.lastIndexOf('}');\nif (s < 0 || e <= s) throw new Error('No JSON found. Snippet: ' + rawText.slice(0, 200));\nlet parsed;\ntry { parsed = JSON.parse(rawText.slice(s, e + 1)); }\ncatch(err) { throw new Error('JSON.parse failed: ' + err.message); }\n\n// 3 — whitelist candidate fields\nconst candidate = {\n  cv:            !!parsed.cv,\n  full_name:     String(parsed.full_name     || ''),\n  sex:           String(parsed.sex           || ''),\n  birth_date:    parsed.birth_date           || null,\n  contact_phone: parsed.contact_phone        || null,\n  email:         String(parsed.email         || ''),\n  country:       parsed.country              || null,\n  city:          parsed.city                 || null,\n  citizenship:   parsed.citizenship          || null,\n  position:      String(parsed.position      || ''),\n  employment:    parsed.employment           || null,\n  experience:    parseInt(parsed.experience) || 0,\n  skills:        Array.isArray(parsed.skills) ? parsed.skills.map(s => String(s)) : [],\n  salary:        parsed.salary ? parseInt(parsed.salary) : null\n};\n\n// 4 — email metadata already forwarded by Prepare PDF Text node\nconst emailFrom    = String($input.item.json.emailFrom    ?? '');\nconst emailSubject = String($input.item.json.emailSubject ?? '');\nconst messageId    = String($input.item.json.messageId    ?? '');\n\nreturn { json: JSON.parse(JSON.stringify({\n  cv: candidate.cv, candidate, emailFrom, emailSubject, messageId\n})) };"
+        },
+        "id": "ab77c1a1-7a07-4542-84c1-6af94fd07b14",
+        "name": "Parse Candidate JSON",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1840,
+          -16
+        ]
+      },
+      {
+        "parameters": {
+          "documentId": {
+            "__rl": true,
+            "value": "1dyYqjXrl88VZ3U_CAPsGEocIYXVtljDn-VMNipKZuaQ",
+            "mode": "list",
+            "cachedResultName": "Zerocoder N3",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1dyYqjXrl88VZ3U_CAPsGEocIYXVtljDn-VMNipKZuaQ/edit?usp=drivesdk"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": "gid=0",
+            "mode": "list",
+            "cachedResultName": "Vacancies",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1dyYqjXrl88VZ3U_CAPsGEocIYXVtljDn-VMNipKZuaQ/edit#gid=0"
+          },
+          "options": {}
+        },
+        "id": "5ce95843-5cb1-4fea-9baa-35a6153a5ed3",
+        "name": "Get Vacancies",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.5,
+        "position": [
+          2304,
+          -96
+        ],
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "j36NScu4bpqsYJKT",
+            "name": "Google Sheets account 3"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "// runOnceForAllItems — items = all vacancy rows from Get Vacancies\n// runs ONCE per candidate batch, not once per vacancy row\nconst parsed = $('Parse Candidate JSON').first().json;\nconst candidate  = parsed.candidate;\nconst emailFrom  = parsed.emailFrom;\nconst emailSubject = parsed.emailSubject;\nconst messageId  = parsed.messageId;\n\nconst vacancies = $input.all()\n  .map((item, index) => ({\n    row_number: index + 2,\n    title:      item.json['Должность'] || item.json['title']       || '',\n    description: [\n      item.json['Описание']    || item.json['description']  || '',\n      item.json['Требования']  || item.json['requirements'] || '',\n      item.json['Зарплата']    ? 'Зарплата: ' + item.json['Зарплата'] : ''\n    ].filter(Boolean).join('. ')\n  }))\n  .filter(v => v.title);\n\nif (vacancies.length === 0) {\n  throw new Error('No vacancies found in Google Sheets. Please fill the Vacancies sheet.');\n}\n\nconst userContent = JSON.stringify({ candidate, vacancies });\nreturn [{ json: { userContent, candidate, vacancies, emailFrom, emailSubject, messageId } }];"
+        },
+        "id": "3572a9c4-d984-44a9-8b66-de29125448a9",
+        "name": "Prepare Matching",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          2512,
+          192
+        ]
+      },
+      {
+        "parameters": {
+          "modelId": {
+            "__rl": true,
+            "value": "gpt-4o",
+            "mode": "list",
+            "cachedResultName": "gpt-4o"
+          },
+          "responses": {
+            "values": [
+              {
+                "role": "system",
+                "content": "Ты — матчинг-агент вакансий. По данным кандидата найди подходящие вакансии из переданного списка, сопоставляя должность, скиллы, опыт, тип занятости, локацию и зарплату. Относись мягко: не отбрасывай жёстко, снижай балл.\nНормализация: lower-case, транслитерация (frontend~фронтенд), синонимы (js=javascript, ts=typescript).\nСемьи должностей: frontend, backend, fullstack, mobile, devops, data, qa, manager.\nСениорность: 0-1→junior, 2-4→middle, 5-8→senior, 9+→lead.\nСкоринг 0-100: роль 40, скиллы 30, опыт 10, занятость 5, локация 5, зарплата 5, прочее 5.\nПорог: >=60→matches, 45-59→near_misses, <45→notable_non_matches.\nВерни все на русском языке и ТОЛЬКО в JSON без пояснений:\n{\"candidate_summary\":{\"full_name\":\"\",\"position_raw\":\"\",\"position_family\":\"\",\"normalized_skills\":[],\"experience_years\":0,\"seniority\":\"\",\"employment\":\"\",\"city\":\"\",\"country\":\"\",\"salary_expectation_rub_per_month\":0,\"contacts\":\"\"},\"matches\":[{\"row_number\":0,\"title\":\"\",\"family\":\"\",\"score\":0,\"breakdown\":{\"role_match_40\":0,\"skill_overlap_30\":0,\"experience_10\":0,\"employment_5\":0,\"location_5\":0,\"salary_5\":0,\"other_5\":0},\"reasons\":[],\"risks\":[]}],\"near_misses\":[],\"notable_non_matches\":[]}"
+              },
+              {
+                "content": "={{$json.userContent}}"
+              }
+            ]
+          },
+          "builtInTools": {},
+          "options": {
+            "temperature": 0.3
+          }
+        },
+        "id": "7bf2b779-ebf2-4b06-8563-e83eed04d944",
+        "name": "Run Matching",
+        "type": "@n8n/n8n-nodes-langchain.openAi",
+        "typeVersion": 2.1,
+        "position": [
+          2720,
+          0
+        ],
+        "credentials": {
+          "openAiApi": {
+            "id": "MHkmfl85kwu22LT8",
+            "name": "OpenAI SINTARIS"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "// runOnceForAllItems\nconst allItems = $input.all();\nconst results  = [];\n\nfor (const item of allItems) {\n  const j = item.json;\n\n  // 1 — extract raw text from OpenAI v2.1 response\n  let rawText = '';\n  const t = j?.output?.[0]?.content?.[0]?.text;\n  if (typeof t === 'string' && t.trim()) rawText = t.trim();\n  else if (typeof j?.content === 'string' && j.content.trim()) rawText = j.content.trim();\n  if (!rawText) throw new Error('Empty OpenAI response. Input keys: ' + Object.keys(j || {}).join(', '));\n\n  // 2 — extract JSON block\n  const s = rawText.indexOf('{');\n  const e = rawText.lastIndexOf('}');\n  if (s < 0 || e <= s) throw new Error('No JSON object found. Text snippet: ' + rawText.slice(0, 200));\n  let parsed;\n  try { parsed = JSON.parse(rawText.slice(s, e + 1)); }\n  catch(err) { throw new Error('JSON.parse failed: ' + err.message + ' | snippet: ' + rawText.slice(s, s + 200)); }\n\n  // 3 — build candidateSummary\n  const sum = parsed.candidate_summary || {};\n  const candidateSummary = {\n    full_name:                        String(sum.full_name || ''),\n    position_raw:                     String(sum.position_raw || ''),\n    position_family:                  String(sum.position_family || ''),\n    normalized_skills:                Array.isArray(sum.normalized_skills) ? sum.normalized_skills.map(String) : [],\n    experience_years:                 parseInt(sum.experience_years) || 0,\n    seniority:                        String(sum.seniority || ''),\n    employment:                       String(sum.employment || ''),\n    city:                             String(sum.city || ''),\n    country:                          String(sum.country || ''),\n    salary_expectation_rub_per_month: parseInt(sum.salary_expectation_rub_per_month) || 0,\n    contacts:                         String(sum.contacts || '')\n  };\n\n  const cleanMatch = m => ({\n    row_number: parseInt(m.row_number) || 0,\n    title:      String(m.title  || ''),\n    family:     String(m.family || ''),\n    score:      parseInt(m.score) || 0,\n    reasons:    Array.isArray(m.reasons) ? m.reasons.map(String) : [],\n    risks:      Array.isArray(m.risks)   ? m.risks.map(String)   : []\n  });\n\n  const qualifiedMatches = (parsed.matches    || []).map(cleanMatch).filter(m => m.score >= 60);\n  const nearMisses       = (parsed.near_misses || []).map(cleanMatch);\n\n  const prev      = $('Prepare Matching').first().json;\n  const candidate = (prev && prev.candidate) ? JSON.parse(JSON.stringify(prev.candidate)) : {};\n  const emailFrom = String((prev && prev.emailFrom) || '');\n  const messageId = String((prev && prev.messageId) || '');\n\n  // 4 — flat output matching sheet columns exactly\n  results.push({ json: JSON.parse(JSON.stringify({\n    hasMatch:            qualifiedMatches.length >= 1,\n    cv:                  candidate.cv ?? false,\n    full_name:           candidate.full_name    || candidateSummary.full_name || '',\n    sex:                 candidate.sex          || '',\n    birth_date:          candidate.birth_date   || '',\n    email:               candidate.email        || '',\n    phone:               candidate.contact_phone || '',\n    city:                candidate.city         || candidateSummary.city    || '',\n    country:             candidate.country      || candidateSummary.country || '',\n    citizenship:         candidate.citizenship  || '',\n    position:            candidate.position     || candidateSummary.position_raw || '',\n    experience_years:    candidateSummary.experience_years || candidate.experience || 0,\n    employment:          candidate.employment   || candidateSummary.employment || '',\n    skills:              Array.isArray(candidate.skills) ? candidate.skills.join(', ') : '',\n    salary_expectation:  candidateSummary.salary_expectation_rub_per_month || candidate.salary || 0,\n    matched_vacancies:   qualifiedMatches.map(m => m.title).join(', '),\n    match_reasons:       qualifiedMatches.map(m => m.title + ': ' + m.reasons.join('; ')).join(' | '),\n    near_miss_vacancies: nearMisses.map(m => m.title).join(', '),\n    rejection_reasons:   nearMisses.map(m => m.title + ': ' + m.risks.join('; ')).join(' | '),\n    email_from:          emailFrom,\n    message_id:          messageId,\n    emailFrom:           emailFrom,\n    messageId:           messageId,\n    matches:             JSON.stringify(qualifiedMatches),\n    nearMisses:          JSON.stringify(nearMisses),\n    candidateSummary:    JSON.stringify(candidateSummary),\n    candidate:           JSON.stringify(candidate)\n  })) });\n}\n\nreturn results;"
+        },
+        "id": "a7baf6e9-aed3-4dc8-a8fc-770b0c7fac8e",
+        "name": "Parse Matching Result",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          3024,
+          192
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "append",
+          "documentId": {
+            "__rl": true,
+            "value": "1dyYqjXrl88VZ3U_CAPsGEocIYXVtljDn-VMNipKZuaQ",
+            "mode": "list",
+            "cachedResultName": "Zerocoder N3",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1dyYqjXrl88VZ3U_CAPsGEocIYXVtljDn-VMNipKZuaQ/edit?usp=drivesdk"
+          },
+          "sheetName": {
+            "__rl": true,
+            "value": 843012480,
+            "mode": "list",
+            "cachedResultName": "candidates",
+            "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1dyYqjXrl88VZ3U_CAPsGEocIYXVtljDn-VMNipKZuaQ/edit#gid=843012480"
+          },
+          "columns": {
+            "mappingMode": "autoMapInputData",
+            "value": {},
+            "matchingColumns": [],
+            "schema": [
+              {
+                "id": "hasMatch",
+                "displayName": "hasMatch",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "cv",
+                "displayName": "cv",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "full_name",
+                "displayName": "full_name",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "sex",
+                "displayName": "sex",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "birth_date",
+                "displayName": "birth_date",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "email",
+                "displayName": "email",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "phone",
+                "displayName": "phone",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "city",
+                "displayName": "city",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "country",
+                "displayName": "country",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "citizenship",
+                "displayName": "citizenship",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "position",
+                "displayName": "position",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "experience_years",
+                "displayName": "experience_years",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "employment",
+                "displayName": "employment",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "skills",
+                "displayName": "skills",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "salary_expectation",
+                "displayName": "salary_expectation",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "matched_vacancies",
+                "displayName": "matched_vacancies",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "match_reasons",
+                "displayName": "match_reasons",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "near_miss_vacancies",
+                "displayName": "near_miss_vacancies",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "rejection_reasons",
+                "displayName": "rejection_reasons",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "email_from",
+                "displayName": "email_from",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "message_id",
+                "displayName": "message_id",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "matches",
+                "displayName": "matches",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "nearMisses",
+                "displayName": "nearMisses",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "candidateSummary",
+                "displayName": "candidateSummary",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "emailFrom",
+                "displayName": "emailFrom",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "messageId",
+                "displayName": "messageId",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              },
+              {
+                "id": "candidate",
+                "displayName": "candidate",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "type": "string",
+                "canBeUsedToMatch": true,
+                "removed": false
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": false
+          },
+          "options": {}
+        },
+        "id": "fa0d3e07-7c95-4a98-b7b4-3eecc857207a",
+        "name": "Save Candidate",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 4.5,
+        "position": [
+          3312,
+          -32
+        ],
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "j36NScu4bpqsYJKT",
+            "name": "Google Sheets account 3"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "boolean": [
+              {
+                "value1": "={{$json.hasMatch}}",
+                "value2": true
+              }
+            ]
+          }
+        },
+        "id": "95fb7dd4-5c8a-4861-8b94-58c023a1e132",
+        "name": "Has Match?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 1,
+        "position": [
+          3328,
+          304
+        ]
+      },
+      {
+        "parameters": {
+          "amount": 1,
+          "unit": "minutes"
+        },
+        "id": "f34e275e-fade-46b7-b767-ddb64aecfbfd",
+        "name": "Wait Invite",
+        "type": "n8n-nodes-base.wait",
+        "typeVersion": 1.1,
+        "position": [
+          3568,
+          160
+        ],
+        "webhookId": "b8c5e375-644d-4ae2-8c9b-33b0aa233e82"
+      },
+      {
+        "parameters": {
+          "sendTo": "={{ $('Get Message').first().json.from.value[0].address }}",
+          "subject": "=Ваша заявка рассмотрена — {{$json.candidateSummary.position_raw || $json.candidate.position}}",
+          "message": "=<p>Здравствуйте, <strong>{{$json.candidateSummary.full_name || $json.candidate.full_name}}</strong>!</p><p>Ваша заявка на должность <strong>{{$json.candidateSummary.position_raw || $json.candidate.position}}</strong> была рассмотрена нашими сотрудниками — она нам понравилась.</p><p>В скором времени мы свяжемся с вами для проведения интервью.</p><p>С уважением,<br>HR-команда</p>",
+          "options": {
+            "appendAttribution": false
+          }
+        },
+        "id": "512227df-17ab-4ce3-a4c9-5d381e8b8ec5",
+        "name": "Send Invite",
+        "type": "n8n-nodes-base.gmail",
+        "typeVersion": 2.1,
+        "position": [
+          3744,
+          -16
+        ],
+        "webhookId": "23779e82-340a-45d0-8682-a471036b46d7",
+        "credentials": {
+          "gmailOAuth2": {
+            "id": "OM7qAUKDjlYrrRsI",
+            "name": "Gmail account devstar"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "addLabels",
+          "messageId": "={{ $('Parse Matching Result').first().json.messageId }}",
+          "labelIds": [
+            "STARRED"
+          ]
+        },
+        "id": "ae1ee205-c8ce-402e-92bb-496758f5643b",
+        "name": "Label Processed Invite",
+        "type": "n8n-nodes-base.gmail",
+        "typeVersion": 2.1,
+        "position": [
+          3984,
+          144
+        ],
+        "webhookId": "413f0982-54ea-4df3-97ce-ff0e1c350899",
+        "credentials": {
+          "gmailOAuth2": {
+            "id": "OM7qAUKDjlYrrRsI",
+            "name": "Gmail account devstar"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "amount": 3,
+          "unit": "minutes"
+        },
+        "id": "37028bd9-0f53-4279-8cd5-e8c8a11f3a7f",
+        "name": "Wait Reject",
+        "type": "n8n-nodes-base.wait",
+        "typeVersion": 1.1,
+        "position": [
+          3584,
+          432
+        ],
+        "webhookId": "be71febe-a023-4f0c-a9cd-fd054d3b30c9"
+      },
+      {
+        "parameters": {
+          "sendTo": "={{ $('Get Message').first().json.from.value[0].address }}",
+          "subject": "=Ответ на вашу заявку — {{$json.candidateSummary.position_raw || $json.candidate.position}}",
+          "message": "=<p>Здравствуйте, <strong>{{$json.candidateSummary.full_name || $json.candidate.full_name}}</strong>!</p><p>К сожалению, мы вынуждены отказать вам, так как у нас нет подходящих вакансий на данный момент.</p><p>Мы сохранили ваше резюме и при появлении подходящих вакансий обязательно свяжемся с вами.</p><p>С уважением,<br>HR-команда</p>",
+          "options": {
+            "appendAttribution": false
+          }
+        },
+        "id": "38a147ec-262b-4a05-8043-a869732929df",
+        "name": "Send Reject",
+        "type": "n8n-nodes-base.gmail",
+        "typeVersion": 2.1,
+        "position": [
+          3776,
+          304
+        ],
+        "webhookId": "3d7f423a-0caf-40ff-90fd-3af5d8641eb2",
+        "credentials": {
+          "gmailOAuth2": {
+            "id": "OM7qAUKDjlYrrRsI",
+            "name": "Gmail account devstar"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "addLabels",
+          "messageId": "={{ $('Parse Matching Result').first().json.messageId }}",
+          "labelIds": [
+            "STARRED"
+          ]
+        },
+        "id": "6b31b95b-7650-41db-b156-334e56082dfe",
+        "name": "Label Processed Reject",
+        "type": "n8n-nodes-base.gmail",
+        "typeVersion": 2.1,
+        "position": [
+          4016,
+          448
+        ],
+        "webhookId": "bcbc591a-7c7b-4910-8cfe-ea6ac78d3c39",
+        "credentials": {
+          "gmailOAuth2": {
+            "id": "OM7qAUKDjlYrrRsI",
+            "name": "Gmail account devstar"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "mode": "runOnceForEachItem",
+          "jsCode": "// runOnceForEachItem — tag PDF key, pass binary through (no copy/rename)\nconst j = $input.item.json;\nconst binary = $input.item.binary ?? {};\n\n// Find first PDF key using only metadata (never touch binary data itself)\nconst pdfKey = Object.keys(binary).find(k =>\n  k.startsWith('attachment') && (\n    (binary[k].mimeType ?? '').includes('pdf') ||\n    (binary[k].fileName ?? '').toLowerCase().endsWith('.pdf')\n  )\n) ?? null;\n\nreturn {\n  json: {\n    hasPDF: !!pdfKey,\n    pdfBinaryKey: pdfKey ?? '',\n    fileName: pdfKey ? (binary[pdfKey].fileName ?? pdfKey) : '',\n    emailId: j.id ?? '',\n    threadId: j.threadId ?? '',\n    emailFrom: j.from?.value?.[0]?.address ?? '',\n    emailFromName: j.from?.value?.[0]?.name ?? '',\n    subject: j.subject ?? '',\n    messageId: j.messageId ?? '',\n    emailText: j.text ?? ''\n  },\n  binary: $input.item.binary\n};"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          976,
+          -192
+        ],
+        "id": "fcbd0aea-a289-4cd2-9ebd-fff2fabc201b",
+        "name": "extract pdf"
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "loose",
+              "version": 3
+            },
+            "conditions": [
+              {
+                "id": "fe2821a9-a67f-40cb-9fe9-1314b90b2e6b",
+                "leftValue": "={{ $json.id }}",
+                "rightValue": "",
+                "operator": {
+                  "type": "string",
+                  "operation": "notEmpty",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "looseTypeValidation": true,
+          "options": {}
+        },
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.3,
+        "position": [
+          704,
+          112
+        ],
+        "id": "442e6af9-4340-406b-be2c-aae282cb2726",
+        "name": "If"
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "loose",
+              "version": 3
+            },
+            "conditions": [
+              {
+                "id": "c1414d2d-35f8-40b7-a37b-1de90fe0b029",
+                "leftValue": "={{ $json.cv }}",
+                "rightValue": "",
+                "operator": {
+                  "type": "boolean",
+                  "operation": "true",
+                  "singleValue": true
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "looseTypeValidation": true,
+          "options": {}
+        },
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.3,
+        "position": [
+          2080,
+          192
+        ],
+        "id": "463015cd-df3a-459a-9a82-8306b80bfd39",
+        "name": "If1"
+      },
+      {
+        "parameters": {},
+        "type": "n8n-nodes-base.manualTrigger",
+        "typeVersion": 1,
+        "position": [
+          240,
+          352
+        ],
+        "id": "e5d8c053-b6bb-4dbd-8163-123ec917c81e",
+        "name": "When clicking ‘Execute workflow’"
+      },
+      {
+        "parameters": {
+          "operation": "getAll",
+          "limit": 5,
+          "simple": false,
+          "filters": {
+            "q": "has:attachment filename:pdf",
+            "readStatus": "unread"
+          },
+          "options": {
+            "dataPropertyAttachmentsPrefixName": "attachment_",
+            "downloadAttachments": true
+          }
+        },
+        "type": "n8n-nodes-base.gmail",
+        "typeVersion": 2.2,
+        "position": [
+          448,
+          192
+        ],
+        "id": "b34fecfe-577c-4475-8886-20c847b4ebe0",
+        "name": "Get many messages",
+        "webhookId": "776fa731-772f-43fe-a6ce-af5e3ddac2c2",
+        "credentials": {
+          "gmailOAuth2": {
+            "id": "OM7qAUKDjlYrrRsI",
+            "name": "Gmail account devstar"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "markAsRead",
+          "messageId": "={{ $('Parse Matching Result').first().json.messageId }}"
+        },
+        "id": "751f4612-3304-439d-9de5-d67539d7604a",
+        "name": "Mark as Read (Invite)",
+        "type": "n8n-nodes-base.gmail",
+        "typeVersion": 2.1,
+        "position": [
+          4224,
+          144
+        ],
+        "webhookId": "72655915-8dca-444a-bc3a-a8666afa576f",
+        "credentials": {
+          "gmailOAuth2": {
+            "id": "OM7qAUKDjlYrrRsI",
+            "name": "Gmail account devstar"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "markAsRead",
+          "messageId": "={{ $('Parse Matching Result').first().json.messageId }}"
+        },
+        "id": "88340f18-eec5-4786-903e-ea158a9c4131",
+        "name": "Mark as Read (Reject)",
+        "type": "n8n-nodes-base.gmail",
+        "typeVersion": 2.1,
+        "position": [
+          4272,
+          448
+        ],
+        "webhookId": "b0ba2c7f-6c6f-4ca2-97b5-a07ad347a508",
+        "credentials": {
+          "gmailOAuth2": {
+            "id": "OM7qAUKDjlYrrRsI",
+            "name": "Gmail account devstar"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "markAsRead",
+          "messageId": "={{ $('Parse Matching Result').first().json.messageId }}"
+        },
+        "id": "98b95ade-3cab-4382-8b6a-cdf25485ad05",
+        "name": "Mark as Read (Reject)1",
+        "type": "n8n-nodes-base.gmail",
+        "typeVersion": 2.1,
+        "position": [
+          1072,
+          368
+        ],
+        "webhookId": "b0ba2c7f-6c6f-4ca2-97b5-a07ad347a508",
+        "credentials": {
+          "gmailOAuth2": {
+            "id": "OM7qAUKDjlYrrRsI",
+            "name": "Gmail account devstar"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "get",
+          "messageId": "={{ $json.id }}",
+          "simple": false,
+          "options": {
+            "dataPropertyAttachmentsPrefixName": "attachment_",
+            "downloadAttachments": true
+          }
+        },
+        "id": "c3a43f03-b2b4-48c2-8123-970a451262fc",
+        "name": "Get Message",
+        "type": "n8n-nodes-base.gmail",
+        "typeVersion": 2.1,
+        "position": [
+          928,
+          0
+        ],
+        "webhookId": "2ada7307-20b3-4bb6-86f6-b4cdde22e3e9",
+        "credentials": {
+          "gmailOAuth2": {
+            "id": "OM7qAUKDjlYrrRsI",
+            "name": "Gmail account devstar"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "minutes",
+                "minutesInterval": 15
+              }
+            ]
+          }
+        },
+        "id": "f3d50c52-3cd4-4c23-9609-e5eb2347be2d",
+        "name": "Schedule Trigger",
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1,
+        "position": [
+          176,
+          -96
+        ]
+      }
+    ],
+    "connections": {
+      "Gmail Trigger": {
+        "main": [
+          [
+            {
+              "node": "If",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Extract Candidate Info": {
+        "main": [
+          [
+            {
+              "node": "Parse Candidate JSON",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Parse Candidate JSON": {
+        "main": [
+          [
+            {
+              "node": "If1",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Vacancies": {
+        "main": [
+          [
+            {
+              "node": "Prepare Matching",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Run Matching": {
+        "main": [
+          [
+            {
+              "node": "Parse Matching Result",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Parse Matching Result": {
+        "main": [
+          [
+            {
+              "node": "Save Candidate",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Has Match?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Has Match?": {
+        "main": [
+          [
+            {
+              "node": "Wait Invite",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Wait Reject",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Wait Invite": {
+        "main": [
+          [
+            {
+              "node": "Send Invite",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Send Invite": {
+        "main": [
+          [
+            {
+              "node": "Label Processed Invite",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Wait Reject": {
+        "main": [
+          [
+            {
+              "node": "Send Reject",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Send Reject": {
+        "main": [
+          [
+            {
+              "node": "Label Processed Reject",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Prepare PDF Text": {
+        "main": [
+          [
+            {
+              "node": "Extract Candidate Info",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Prepare Matching": {
+        "main": [
+          [
+            {
+              "node": "Run Matching",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "If1": {
+        "main": [
+          [
+            {
+              "node": "Get Vacancies",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "When clicking ‘Execute workflow’": {
+        "main": [
+          [
+            {
+              "node": "Get many messages",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get many messages": {
+        "main": [
+          [
+            {
+              "node": "If",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Extract PDF Text": {
+        "main": [
+          [
+            {
+              "node": "Prepare PDF Text",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "If": {
+        "main": [
+          [
+            {
+              "node": "Get Message",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Mark as Read (Reject)1",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Label Processed Invite": {
+        "main": [
+          [
+            {
+              "node": "Mark as Read (Invite)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Label Processed Reject": {
+        "main": [
+          [
+            {
+              "node": "Mark as Read (Reject)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Message": {
+        "main": [
+          [
+            {
+              "node": "Extract PDF Text",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Schedule Trigger": {
+        "main": [
+          [
+            {
+              "node": "Get many messages",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "authors": "Stanislav Ulmer",
+    "name": null,
+    "description": null,
+    "autosaved": false,
+    "workflowPublishHistory": [
+      {
+        "createdAt": "2026-04-06T19:08:40.820Z",
+        "id": 435,
+        "workflowId": "VDNz9XhtosrUgQsq",
+        "versionId": "c125cf94-1057-4232-8927-420c75d8f6ef",
+        "event": "activated",
+        "userId": "d2b35160-20b8-4774-a219-6c677a1b292b"
+      }
+    ]
+  }
+}
