@@ -1,6 +1,7 @@
 """Построение и загрузка векторных баз FAISS и ChromaDB на одних и тех же данных."""
 
 import pickle
+import shutil
 from pathlib import Path
 
 import faiss as faiss_lib
@@ -68,8 +69,17 @@ def load_faiss_index(embeddings=None) -> FAISS:
 
 
 def build_chroma_index(chunks=None, embeddings=None) -> Chroma:
+    """Строит коллекцию ChromaDB с нуля.
+
+    Chroma.from_documents() дозаписывает документы в уже существующую на диске
+    коллекцию, а не заменяет её — при повторных запусках (например, после
+    изменения набора файлов в data/) в базе накапливаются дубли и фрагменты
+    удалённых документов. Поэтому перед сборкой удаляем старую коллекцию.
+    """
     chunks = chunks if chunks is not None else load_and_split()
     embeddings = embeddings or get_embeddings()
+    if CHROMA_DIR.exists():
+        shutil.rmtree(CHROMA_DIR)
     CHROMA_DIR.mkdir(parents=True, exist_ok=True)
     return Chroma.from_documents(
         chunks,

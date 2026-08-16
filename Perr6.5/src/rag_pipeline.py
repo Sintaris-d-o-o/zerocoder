@@ -8,7 +8,7 @@ from langchain_ollama import ChatOllama
 from src.vector_store import get_embeddings, load_chroma_index, load_faiss_index
 
 OLLAMA_MODEL = "llama3.2:3b"
-TOP_K = 4
+TOP_K = 8
 
 SYSTEM_PROMPT = (
     "Ты — консультант ювелирного магазина. Отвечай на вопросы покупателей ТОЛЬКО на основе "

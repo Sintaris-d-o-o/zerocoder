@@ -7,14 +7,14 @@
 
 import argparse
 
-from src.rag_pipeline import answer_question
+from src.rag_pipeline import TOP_K, answer_question
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="RAG-консультант по ювелирным изделиям")
     parser.add_argument("question", help="Вопрос на русском языке")
     parser.add_argument("--backend", choices=["faiss", "chroma"], default="faiss")
-    parser.add_argument("--k", type=int, default=4, help="Сколько фрагментов подмешивать в контекст")
+    parser.add_argument("--k", type=int, default=TOP_K, help="Сколько фрагментов подмешивать в контекст")
     args = parser.parse_args()
 
     result = answer_question(args.question, backend=args.backend, k=args.k)
