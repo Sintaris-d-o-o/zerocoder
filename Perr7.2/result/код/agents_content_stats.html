@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block title %}{{ wt(current_lang, 'content_stats_title') }} — Taris{% endblock %}
+{% block page_title %}{{ wt(current_lang, 'content_stats_title') }}{% endblock %}
+
+{% block content %}
+<div style="max-width:1100px; margin:0 auto">
+
+  <p style="margin-bottom:1rem">
+    <a href="{{ root_path }}/agents/content" style="font-size:0.9rem; color:var(--text-muted); text-decoration:none">
+      {{ wt(current_lang, 'content_stats_back') }}
+    </a>
+  </p>
+
+  {% if msg %}
+  <div class="card mb-md" style="border-color:var(--success); color:var(--success)" data-testid="content-stats-msg">{{ msg }}</div>
+  {% endif %}
+  {% if error %}
+  <div class="card mb-md" style="border-color:var(--error); color:var(--error)" data-testid="content-stats-error">{{ error }}</div>
+  {% endif %}
+
+  {% if not summary.posts_total %}
+  <div class="card" data-testid="content-stats-empty">{{ wt(current_lang, 'content_stats_empty') }}</div>
+  {% else %}
+
+  {# ── Cards: the numbers the assignment asks for, at a glance ────────────── #}
+  <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px; margin-bottom:18px"
+       id="content-stat-tiles">
+    {% for label, value, suffix in [
+        ('content_card_posts',      summary.posts_total,    ''),
+        ('content_card_published',  summary.published,      ''),
+        ('content_card_likes',      summary.likes,          ''),
+        ('content_card_views',      summary.views,          ''),
+        ('content_card_followers',  summary.followers,      ''),
+        ('content_card_engagement', summary.engagement_avg, '%'),
+        ('content_card_images',     summary.with_image,     '')] %}
+    <div class="card" style="text-align:center">
+      <div style="font-size:28px; font-weight:700; font-variant-numeric:tabular-nums">{{ value }}{{ suffix }}</div>
+      <div style="color:var(--text-muted); font-size:12px">{{ wt(current_lang, label) }}</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {# ── Monthly chart: plain CSS bars, no external library (CSP-safe) ──────── #}
+  {% if summary.monthly %}
+  <p class="section-label">{{ wt(current_lang, 'content_by_month') }}</p>
+  <div class="card mb-md" style="overflow-x:auto">
+    <div style="display:flex; align-items:flex-end; gap:14px; min-height:150px; padding:8px 4px"
+         id="content-month-chart">
+      {% for row in summary.monthly %}
+      <div style="display:flex; flex-direction:column; align-items:center; gap:6px; min-width:52px">
+        <span style="font-size:12px; font-variant-numeric:tabular-nums">{{ row.posts }}</span>
+        <div title="{{ row.month }}: {{ row.posts }}"
+             style="width:34px; border-radius:6px 6px 0 0; background:var(--accent);
+                    height:{{ (row.posts * 110 // chart_max) if chart_max else 0 }}px; min-height:4px"></div>
+        <span style="font-size:11px; color:var(--text-muted)">{{ row.month }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Popular topics ─────────────────────────────────────────────────────── #}
+  {% if summary.top_topics %}
+  <p class="section-label">{{ wt(current_lang, 'content_top_topics') }}</p>
+  <div class="card mb-md">
+    <table style="border-collapse:collapse; width:100%" id="content-top-topics">
+      {% for row in summary.top_topics %}
+      <tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:7px 8px">{{ row.topic }}</td>
+        <td style="padding:7px 8px; text-align:right; font-variant-numeric:tabular-nums">{{ row.posts }} ·
+          {{ wt(current_lang, 'content_card_views') | lower }} {{ row.views }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% endif %}
+
+  {# ── Metrics table: one row per post, each row an editable observation ──── #}
+  <p class="section-label">{{ wt(current_lang, 'content_tbl_hdr') }}</p>
+  <p style="color:var(--text-muted); font-size:0.85rem; margin:0 0 0.5rem">
+    {{ wt(current_lang, 'content_metrics_hint') }}
+  </p>
+  {% if vk_ready %}
+  <form method="post" action="{{ root_path }}/agents/content/stats/sync" style="margin-bottom:0.75rem">
+    <button type="submit" class="btn btn-sm" data-testid="content-sync-vk">
+      {{ wt(current_lang, 'content_btn_sync_vk') }}
+    </button>
+  </form>
+  {% endif %}
+
+  <div class="card" style="overflow-x:auto">
+    <table style="border-collapse:collapse; width:100%; min-width:820px" id="content-metrics-table">
+      <tr style="border-bottom:1px solid var(--border)">
+        <th style="text-align:left;  padding:6px 8px; font-size:12px; color:var(--text-muted)">{{ wt(current_lang, 'content_tbl_post') }}</th>
+        <th style="text-align:left;  padding:6px 8px; font-size:12px; color:var(--text-muted)">{{ wt(current_lang, 'content_tbl_platform') }}</th>
+        <th style="text-align:left;  padding:6px 8px; font-size:12px; color:var(--text-muted)">{{ wt(current_lang, 'content_tbl_status') }}</th>
+        <th style="text-align:right; padding:6px 8px; font-size:12px; color:var(--text-muted)">{{ wt(current_lang, 'content_card_engagement') }}</th>
+        <th style="text-align:left;  padding:6px 8px; font-size:12px; color:var(--text-muted)">{{ wt(current_lang, 'content_tbl_actions') }}</th>
+      </tr>
+      {% for post in posts %}
+      <tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:8px; max-width:280px">
+          {% if post.image_url %}
+          <img src="{{ post.image_url }}" alt="" style="width:44px; height:44px; object-fit:cover; border-radius:6px; float:left; margin-right:8px">
+          {% endif %}
+          <span style="font-size:0.9rem">{{ post.title }}</span>
+          {% if post.external_url %}
+          <br><a href="{{ post.external_url }}" target="_blank" rel="noopener"
+                 style="font-size:0.78rem; color:var(--text-muted)">{{ post.external_url }}</a>
+          {% endif %}
+        </td>
+        <td style="padding:8px; font-size:0.85rem">{{ post.platform or '—' }}</td>
+        <td style="padding:8px; font-size:0.85rem">
+          {% if post.status == 'published' %}{{ wt(current_lang, 'content_status_published') }}
+          {% else %}{{ wt(current_lang, 'content_status_draft') }}{% endif %}
+        </td>
+        <td style="padding:8px; text-align:right; font-variant-numeric:tabular-nums">{{ post.engagement }}%</td>
+        <td style="padding:8px">
+          {# flex-start, not center: a control row that centres itself inline cannot be
+             re-aligned by the stylesheet, and the labelled boxes here are of unequal
+             height (T540a). #}
+          <form method="post" action="{{ root_path }}/agents/content/stats/{{ post.id }}/metrics"
+                style="display:flex; gap:6px; align-items:flex-end; flex-wrap:wrap">
+            <label style="margin:0"><span style="font-size:11px; color:var(--text-muted)">{{ wt(current_lang, 'content_card_likes') }}</span>
+              <input type="number" name="likes" min="0" value="{{ post.metrics.likes or 0 }}" style="width:90px; margin:0"></label>
+            <label style="margin:0"><span style="font-size:11px; color:var(--text-muted)">{{ wt(current_lang, 'content_card_views') }}</span>
+              <input type="number" name="views" min="0" value="{{ post.metrics.views or 0 }}" style="width:90px; margin:0"></label>
+            <label style="margin:0"><span style="font-size:11px; color:var(--text-muted)">{{ wt(current_lang, 'content_card_followers') }}</span>
+              <input type="number" name="followers" min="0" value="{{ post.metrics.followers or 0 }}" style="width:100px; margin:0"></label>
+            <button type="submit" class="btn btn-sm" data-testid="content-save-metrics">{{ wt(current_lang, 'content_btn_save_metrics') }}</button>
+          </form>
+          <form method="post" action="{{ root_path }}/agents/content/stats/{{ post.id }}/delete"
+                style="margin-top:6px">
+            <button type="submit" class="btn btn-sm" data-testid="content-delete-post">{{ wt(current_lang, 'content_btn_delete_post') }}</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+
+  {% endif %}
+</div>
+{% endblock %}
