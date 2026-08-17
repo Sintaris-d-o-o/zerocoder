@@ -1,0 +1,330 @@
+{% extends "base.html" %}
+{% block title %}{{ wt(current_lang, 'content_page_title') }} — Taris{% endblock %}
+{% block page_title %}{{ wt(current_lang, 'content_page_title') }}{% endblock %}
+
+{% block content %}
+<div style="max-width:760px; margin:0 auto; padding:1rem">
+
+  <div style="display:flex; justify-content:space-between; gap:1rem; flex-wrap:wrap">
+    <a href="{{ root_path }}/agents" style="font-size:0.9rem; color:var(--pico-muted-color); text-decoration:none">
+      {{ wt(current_lang, 'content_back') }}
+    </a>
+    <a href="{{ root_path }}/agents/content/stats" data-testid="content-stats-link"
+       style="font-size:0.9rem; text-decoration:none">
+      {{ wt(current_lang, 'content_btn_stats') }}
+    </a>
+  </div>
+
+  {% if msg %}
+  <div style="background:var(--pico-color-green-100);border:1px solid var(--pico-color-green-300);border-radius:6px;padding:0.6rem 1rem;margin:1rem 0;color:var(--pico-color-green-700)">
+    {{ msg }}
+  </div>
+  {% endif %}
+  {% if error %}
+  <div style="background:var(--pico-color-red-100);border:1px solid var(--pico-color-red-300);border-radius:6px;padding:0.6rem 1rem;margin:1rem 0;color:var(--pico-color-red-700)">
+    {{ error }}
+  </div>
+  {% endif %}
+
+  {% if step == 'post_preview' %}
+  {# ──────────────────── Step 3: Post Preview ──────────────────── #}
+  <div style="margin-top:1.5rem">
+    <h3 style="margin-top:0">{{ wt(current_lang, 'content_post_preview_hdr') }} #{{ post_index }}</h3>
+
+    <div id="post-content" style="background:var(--pico-card-background-color);border:1px solid var(--pico-muted-border-color);border-radius:8px;padding:1rem;font-size:0.92rem;white-space:pre-wrap;line-height:1.6;margin-bottom:1.25rem">{{ post_text }}</div>
+
+    {# ──────────────── Illustration ──────────────── #}
+    {% if images_enabled %}
+    <div style="margin-bottom:1.25rem" data-testid="content-image-block">
+      <h4 style="margin:0 0 0.5rem">{{ wt(current_lang, 'content_image_hdr') }}</h4>
+      {% if image_url %}
+      <img src="{{ image_url }}" alt="" data-testid="content-image"
+           style="max-width:100%; width:320px; border-radius:8px; display:block; margin-bottom:0.6rem">
+      {% else %}
+      <p style="color:var(--pico-muted-color); font-size:0.85rem; margin:0 0 0.6rem">
+        {{ wt(current_lang, 'content_image_hint') }}
+      </p>
+      {% endif %}
+      <div style="display:flex; gap:0.5rem; flex-wrap:wrap">
+        <form method="post" action="{{ root_path }}/agents/content/image" style="display:inline"
+              onsubmit="_showGenerating(this)">
+          <input type="hidden" name="session_id" value="{{ session_id }}">
+          <input type="hidden" name="post_text" value="{{ post_text }}">
+          <input type="hidden" name="post_index" value="{{ post_index }}">
+          <input type="hidden" name="plan_text" value="{{ plan_text }}">
+          <input type="hidden" name="platform" value="{{ platform }}">
+          <button type="submit" class="btn btn-sm" data-testid="content-generate-image">
+            {% if image_url %}{{ wt(current_lang, 'content_btn_image_new') }}
+            {% else %}{{ wt(current_lang, 'content_btn_image') }}{% endif %}
+          </button>
+        </form>
+        {% if image_url %}
+        <form method="post" action="{{ root_path }}/agents/content/image/delete" style="display:inline">
+          <input type="hidden" name="session_id" value="{{ session_id }}">
+          <input type="hidden" name="post_text" value="{{ post_text }}">
+          <input type="hidden" name="post_index" value="{{ post_index }}">
+          <input type="hidden" name="plan_text" value="{{ plan_text }}">
+          <input type="hidden" name="platform" value="{{ platform }}">
+          <button type="submit" class="btn btn-sm" data-testid="content-delete-image">
+            {{ wt(current_lang, 'content_btn_image_del') }}
+          </button>
+        </form>
+        {% endif %}
+      </div>
+      <div id="image-msg" style="display:none; color:var(--pico-muted-color); font-size:0.9rem; margin-top:0.5rem">
+        {{ wt(current_lang, 'content_image_wait') }}
+      </div>
+    </div>
+    {% endif %}
+
+    <div style="display:flex; gap:0.75rem; flex-wrap:wrap">
+      {# Save draft #}
+      <form method="post" action="{{ root_path }}/agents/content/post/save" style="display:inline">
+        <input type="hidden" name="session_id" value="{{ session_id }}">
+        <input type="hidden" name="post_text" value="{{ post_text }}">
+        <input type="hidden" name="post_index" value="{{ post_index }}">
+        <input type="hidden" name="plan_text" value="{{ plan_text }}">
+        <input type="hidden" name="platform" value="{{ platform }}">
+        <button type="submit" class="btn btn-sm" style="padding:0.4rem 0.9rem">
+          {{ wt(current_lang, 'content_btn_save_post') }}
+        </button>
+      </form>
+
+      {# Download — the whole delivery path for a platform that takes no post from a bot #}
+      <form method="post" action="{{ root_path }}/agents/content/post/download" style="display:inline">
+        <input type="hidden" name="session_id" value="{{ session_id }}">
+        <input type="hidden" name="post_text" value="{{ post_text }}">
+        <input type="hidden" name="post_index" value="{{ post_index }}">
+        <button type="submit" class="btn btn-sm" style="padding:0.4rem 0.9rem"
+                data-testid="content-download-post">
+          {{ wt(current_lang, 'content_btn_download') }}
+        </button>
+      </form>
+
+      {% if image_url %}
+      <a href="{{ image_url }}" download class="btn btn-sm" data-testid="content-download-image"
+         style="padding:0.4rem 0.9rem; text-decoration:none">
+        {{ wt(current_lang, 'content_btn_download_image') }}
+      </a>
+      {% endif %}
+    </div>
+
+    {# ──────────────── Publishing ──────────────── #}
+    {% macro publish_form() %}
+      <form method="post" action="{{ root_path }}/agents/content/publish"
+            style="display:flex; align-items:flex-end; gap:0.5rem; flex-wrap:wrap; margin-top:0.75rem">
+        <input type="hidden" name="session_id" value="{{ session_id }}">
+        <input type="hidden" name="post_text" value="{{ post_text }}">
+        <input type="hidden" name="post_index" value="{{ post_index }}">
+        <input type="hidden" name="plan_text" value="{{ plan_text }}">
+        <input type="hidden" name="platform" value="{{ platform }}">
+        {% if vk_ready %}
+        <label style="display:flex; flex-direction:column; gap:0.2rem; margin:0">
+          <span style="font-size:0.85rem">{{ wt(current_lang, 'content_lbl_target') }}</span>
+          <select name="target" data-testid="content-publish-target" style="margin:0">
+            <option value="telegram" {% if platform != 'vk' %}selected{% endif %}>{{ wt(current_lang, 'content_target_tg') }}</option>
+            <option value="vk" {% if platform == 'vk' %}selected{% endif %}>{{ wt(current_lang, 'content_target_vk') }}</option>
+          </select>
+        </label>
+        {% else %}
+        <input type="hidden" name="target" value="telegram">
+        {% endif %}
+        <label style="display:flex; flex-direction:column; gap:0.2rem; margin:0">
+          <span style="font-size:0.85rem">{{ wt(current_lang, 'content_channel_lbl') }}</span>
+          <input type="text" name="channel_id"
+                 value="{{ content_tg_channel or '' }}"
+                 placeholder="{{ wt(current_lang, 'content_channel_ph') }}"
+                 style="width:200px; margin:0">
+        </label>
+        <button type="submit" class="btn btn-accent btn-sm" style="padding:0.4rem 0.9rem">
+          {{ wt(current_lang, 'content_btn_publish') }}
+        </button>
+      </form>
+    {% endmacro %}
+
+    {% if platform_publishable %}
+    <div style="margin-top:1.25rem" data-testid="content-publish-block">
+      {{ publish_form() }}
+    </div>
+    {% else %}
+    {# The platform this post was written for takes no post from a bot. Say so, and offer
+       what actually works — the file — instead of a channel field that answers a question
+       the user never asked. #}
+    <div style="margin-top:1.25rem" data-testid="content-publish-manual">
+      <p style="background:var(--pico-card-background-color); border:1px solid var(--pico-muted-border-color);
+                border-radius:8px; padding:0.7rem 1rem; font-size:0.9rem; margin:0">
+        {{ wt(current_lang, 'content_publish_manual').format(platform=platform_label or '—') }}
+      </p>
+      <details style="margin-top:0.75rem">
+        <summary style="cursor:pointer; font-size:0.9rem; color:var(--pico-muted-color)"
+                 data-testid="content-publish-anyway">
+          {{ wt(current_lang, 'content_publish_anyway') }}
+        </summary>
+        {{ publish_form() }}
+      </details>
+    </div>
+    {% endif %}
+
+    {# Correction form #}
+    <details style="margin-top:1.25rem">
+      <summary style="cursor:pointer; font-size:0.9rem; color:var(--pico-muted-color)">
+        {{ wt(current_lang, 'content_btn_correct') }}
+      </summary>
+      <form method="post" action="{{ root_path }}/agents/content/post"
+            style="display:flex; flex-direction:column; gap:0.75rem; margin-top:0.75rem"
+            onsubmit="_showGenerating(this)">
+        <input type="hidden" name="session_id" value="{{ session_id }}">
+        <input type="hidden" name="post_index" value="{{ post_index }}">
+        <input type="hidden" name="plan_text" value="{{ plan_text }}">
+        <input type="hidden" name="platform" value="{{ platform }}">
+        <label>
+          <span style="font-weight:500">{{ wt(current_lang, 'content_correction_lbl') }}</span>
+          <textarea name="correction" rows="3" style="margin-top:0.3rem"
+                    placeholder="{{ wt(current_lang, 'content_correction_ph') }}"></textarea>
+        </label>
+        <button type="submit" class="btn btn-sm" style="align-self:flex-start; padding:0.4rem 0.9rem">
+          {{ wt(current_lang, 'content_btn_correct') }}
+        </button>
+      </form>
+    </details>
+
+    {# Back to plan #}
+    <div style="margin-top:1.25rem">
+      <button onclick="history.back()" class="btn btn-sm" style="padding:0.4rem 0.9rem">
+        {{ wt(current_lang, 'content_btn_back_plan') }}
+      </button>
+    </div>
+  </div>
+
+  {% elif step == 'plan_preview' %}
+  {# ──────────────────── Step 2: Plan Preview ──────────────────── #}
+  <div style="margin-top:1.5rem">
+    <h3 style="margin-top:0">{{ wt(current_lang, 'content_plan_preview_hdr') }}</h3>
+
+    <div style="background:var(--pico-card-background-color);border:1px solid var(--pico-muted-border-color);border-radius:8px;padding:1rem;font-size:0.92rem;white-space:pre-wrap;line-height:1.6;margin-bottom:1.25rem">{{ plan_text }}</div>
+
+    {# Save plan / Download #}
+    <div style="display:flex; gap:0.75rem; flex-wrap:wrap; margin-bottom:1rem">
+      <form method="post" action="{{ root_path }}/agents/content/plan/save" style="display:inline">
+        <input type="hidden" name="session_id" value="{{ session_id }}">
+        <input type="hidden" name="plan_text" value="{{ plan_text }}">
+        <button type="submit" class="btn btn-sm" style="padding:0.4rem 0.9rem">
+          {{ wt(current_lang, 'content_btn_save_plan') }}
+        </button>
+      </form>
+    </div>
+
+    {# Generate individual posts #}
+    <h4 style="margin-bottom:0.75rem">{{ wt(current_lang, 'content_select_post') }}</h4>
+    <div style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-bottom:1.25rem">
+      {% for n in range(1, (post_count or 7) + 1) %}
+      <form method="post" action="{{ root_path }}/agents/content/post"
+            style="display:inline" onsubmit="_showGenerating(this)">
+        <input type="hidden" name="session_id" value="{{ session_id }}">
+        <input type="hidden" name="post_index" value="{{ n }}">
+        <input type="hidden" name="plan_text" value="{{ plan_text }}">
+        <button type="submit" class="btn btn-sm" style="padding:0.35rem 0.8rem">
+          📝 #{{ n }}
+        </button>
+      </form>
+      {% endfor %}
+    </div>
+
+    {# Correct plan #}
+    <details>
+      <summary style="cursor:pointer; font-size:0.9rem; color:var(--pico-muted-color)">
+        {{ wt(current_lang, 'content_btn_correct') }}
+      </summary>
+      <form method="post" action="{{ root_path }}/agents/content/plan/correct"
+            style="display:flex; flex-direction:column; gap:0.75rem; margin-top:0.75rem"
+            onsubmit="_showGenerating(this)">
+        <input type="hidden" name="session_id" value="{{ session_id }}">
+        <input type="hidden" name="q1" value="{{ form.q1 }}">
+        <input type="hidden" name="q2" value="{{ form.q2 }}">
+        <label>
+          <span style="font-weight:500">{{ wt(current_lang, 'content_correction_lbl') }}</span>
+          <textarea name="correction" rows="3" style="margin-top:0.3rem"
+                    placeholder="{{ wt(current_lang, 'content_correction_ph') }}"></textarea>
+        </label>
+        <button type="submit" class="btn btn-sm" style="align-self:flex-start; padding:0.4rem 0.9rem">
+          {{ wt(current_lang, 'content_btn_correct') }}
+        </button>
+      </form>
+    </details>
+
+    {# New plan #}
+    <div style="margin-top:1rem">
+      <a href="{{ root_path }}/agents/content" class="btn btn-sm" style="padding:0.4rem 0.9rem; text-decoration:none">
+        {{ wt(current_lang, 'content_btn_new_plan') }}
+      </a>
+    </div>
+  </div>
+
+  {% else %}
+  {# ──────────────────── Step 1: Input Form ──────────────────── #}
+  <div style="margin-top:1.5rem">
+    <p style="color:var(--pico-muted-color); font-size:0.95rem; margin-bottom:1.25rem">
+      {{ wt(current_lang, 'content_agent_desc') }}
+    </p>
+
+    <form method="post" action="{{ root_path }}/agents/content/plan"
+          style="display:flex; flex-direction:column; gap:1rem; max-width:600px"
+          onsubmit="_showGenerating(this)">
+      <input type="hidden" name="session_id" value="{{ session_id }}">
+
+      <label>
+        <span style="font-weight:500">{{ wt(current_lang, 'content_lbl_q1') }} <span style="color:var(--pico-color-red-500)">*</span></span>
+        <textarea name="q1" required rows="3" style="margin-top:0.3rem"
+                  placeholder="{{ wt(current_lang, 'content_ph_q1') }}">{{ form.q1|default('') }}</textarea>
+      </label>
+
+      <label>
+        <span style="font-weight:500">{{ wt(current_lang, 'content_lbl_q2') }}</span>
+        <select name="q2" style="margin-top:0.3rem">
+          {% set q2_val = form.q2|default('telegram') %}
+          <option value="telegram" {% if q2_val == 'telegram' %}selected{% endif %}>Telegram</option>
+          <option value="instagram" {% if q2_val == 'instagram' %}selected{% endif %}>Instagram</option>
+          <option value="linkedin" {% if q2_val == 'linkedin' %}selected{% endif %}>LinkedIn</option>
+          <option value="vk" {% if q2_val == 'vk' %}selected{% endif %}>VK</option>
+          <option value="email" {% if q2_val == 'email' %}selected{% endif %}>Email newsletter</option>
+          <option value="blog" {% if q2_val == 'blog' %}selected{% endif %}>Blog / website</option>
+          <option value="youtube" {% if q2_val == 'youtube' %}selected{% endif %}>YouTube</option>
+        </select>
+      </label>
+
+      <label style="display:flex; align-items:flex-start; gap:0.5rem; cursor:pointer">
+        <input type="checkbox" name="use_kb" value="1" style="margin-top:0.25rem; flex-shrink:0">
+        <span>
+          <strong>{{ wt(current_lang, 'content_lbl_q3') }}</strong><br>
+          <small style="color:var(--pico-muted-color)">{{ wt(current_lang, 'content_q3_hint') }}</small>
+        </span>
+      </label>
+
+      <div id="generating-msg" style="display:none; color:var(--pico-muted-color); font-size:0.9rem">
+        {{ wt(current_lang, 'content_generating_msg') }}
+      </div>
+
+      <button type="submit" id="btn-generate" class="btn btn-accent" style="align-self:flex-start; padding:0.5rem 1.4rem">
+        {{ wt(current_lang, 'content_btn_generate') }}
+      </button>
+    </form>
+  </div>
+  {% endif %}
+
+</div>
+
+<script>
+function _showGenerating(form) {
+  var msg = document.getElementById('generating-msg');
+  var btn = document.getElementById('btn-generate');
+  var img = document.getElementById('image-msg');
+  if (img && form.action.indexOf('/content/image') !== -1) img.style.display = 'block';
+  if (msg) msg.style.display = 'block';
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ …'; }
+  // Also disable all submit buttons in the form being submitted
+  form.querySelectorAll('button[type=submit]').forEach(function(b) {
+    b.disabled = true;
+  });
+}
+</script>
+{% endblock %}

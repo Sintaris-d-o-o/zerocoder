@@ -65,6 +65,35 @@ MAX_TRACKED_POSTS = 200
 _PLAN_PREFIX = "cp_"
 _POST_PREFIX = "post_"
 
+# The platform chosen at the start governs how the post is WRITTEN — length, tone, hashtags.
+# It says nothing about where it can be SENT: only a Telegram channel and a VK community can
+# receive a post from a bot at all. Instagram, Facebook, LinkedIn and YouTube publish only
+# through a reviewed business app with an approved use case, and a blog or a newsletter has
+# no endpoint to speak of. Offering a "publish" button for those would either send the post
+# somewhere the user did not choose or fail — so the platform is asked first.
+PUBLISHABLE_PLATFORMS = ("telegram", "vk")
+
+# Brand names are not translated; only the shape of the label is normalised.
+_PLATFORM_LABELS = {
+    "telegram": "Telegram", "vk": "VK", "youtube": "YouTube", "linkedin": "LinkedIn",
+    "instagram": "Instagram", "facebook": "Facebook", "email": "Email",
+    "blog": "Blog / website", "website": "Website",
+}
+
+
+def platform_key(platform: str) -> str:
+    return (platform or "").strip().lower()
+
+
+def platform_label(platform: str) -> str:
+    key = platform_key(platform)
+    return _PLATFORM_LABELS.get(key, (platform or "").strip() or "—")
+
+
+def can_publish_to(platform: str) -> bool:
+    """True when taris can actually deliver a post to the chosen platform."""
+    return platform_key(platform) in PUBLISHABLE_PLATFORMS
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Session state — keyed by chat_id
 # Steps: idle → q1 → q2 → q3_kb
@@ -1013,8 +1042,20 @@ def _show_publish_not_configured(chat_id: int, bot: Any, t: Callable) -> None:
 
 
 def _ask_publish_confirm(chat_id: int, bot: Any, t: Callable) -> None:
-    """Offer one button per configured target — Telegram channel and/or VK community."""
+    """Offer one button per configured target — Telegram channel and/or VK community.
+
+    When the post was written for a platform taris cannot deliver to (Instagram, YouTube,
+    a blog…), that is said first: the alternative on offer is a *different* channel, and
+    sending a YouTube script to a Telegram channel because the button was there is not a
+    publication, it is a surprise.
+    """
     from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
+    sess = _sessions.get(chat_id, {})
+    chosen = sess.get("q2", "")
+    if chosen and not can_publish_to(chosen):
+        bot.send_message(chat_id,
+            t(chat_id, "content_publish_manual_note").format(platform=platform_label(chosen)),
+            parse_mode="Markdown")
     cfg = _get_pub_config(chat_id)
     telegram_ok = bool(cfg["token"]) and bool(cfg["channel"])
     vk_ok = is_vk_configured(chat_id)
