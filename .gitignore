@@ -18,3 +18,8 @@ config.py
 *.sqlite3
 instance/
 
+# Perr8.1: скачанный Kaggle-датасет (1,1 ГБ) и презентация эксперта (19 МБ) —
+# в репозиторий не кладём, ссылки на источники есть в 00-задание.md
+Perr8.1/data/
+Perr8.1/TransferLearning-Zerocoder-IR.pptx
+
