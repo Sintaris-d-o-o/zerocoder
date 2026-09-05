@@ -1,0 +1,9 @@
+Прочитано строк из датасета 8.1: 4500
+Оставлено (языки=['en'], без типов=['json']): 908
+  по типам: {'grounded': 567, 'failclosed': 140, 'wording': 132, 'adversarial': 68, 'refuse': 1}
+validation      91 строк -> D:\Projects\workspace\zerocoder\Perr8.2\data\normassist_seq2seq\validation.jsonl
+train          817 строк -> D:\Projects\workspace\zerocoder\Perr8.2\data\normassist_seq2seq\train.jsonl
+
+Пример пары:
+  document: QUESTION: What are the key steps a manufacturer must follow in the risk management process for medical devices according to ISO 14971? ⏎ CONTEXT: ⏎ [1] применение и обоснованно прогнозируемое неправильное применение Изготови ...
+  summary : The manufacturer must establish, implement, document, and maintain a continuous process for: a) identifying hazards and hazardous situations related to the medical device; b) deter ...

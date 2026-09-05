@@ -1,0 +1,34 @@
+==============================================================================
+ШАГ 3 — Загружаем датасет и метрику ROUGE, смотрим структуру
+==============================================================================
+  Загружено за 3.7 с
+
+  Структура датасета:
+  DatasetDict({
+      train: Dataset({
+          features: ['document', 'summary', 'id'],
+          num_rows: 204045
+      })
+      validation: Dataset({
+          features: ['document', 'summary', 'id'],
+          num_rows: 11332
+      })
+      test: Dataset({
+          features: ['document', 'summary', 'id'],
+          num_rows: 11334
+      })
+  })
+
+  Пример (document, первые 400 символов):
+    'The full cost of damage in Newton Stewart, one of the areas worst affected, is still being assessed.\nRepair work is ongoing in Hawick and many roads in Peeblesshire remain badly affected by standing water.\nTrains on the west coast mainline face disruption due to damage at the Lamington Viaduct.\nMany businesses and householders were affected by flooding in Newton Stewart after the River Cree overfl'
+
+  Пример (summary):
+    'Clean-up operations are continuing across the Scottish Borders and Dumfries and Galloway after flooding caused by Storm Frank.'
+
+  Метрика ROUGE загружена: rouge
+
+  Уменьшаем выборку (полный размер {'train': 204045, 'validation': 11332, 'test': 11334}):
+    train      2000
+    validation 200
+
+[шаг 3 занял 3.7 с]

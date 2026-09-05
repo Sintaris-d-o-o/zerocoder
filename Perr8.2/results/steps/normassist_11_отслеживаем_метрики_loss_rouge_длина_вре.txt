@@ -1,0 +1,36 @@
+==============================================================================
+ШАГ 11 — Отслеживаем метрики: loss, ROUGE, длина, время, ресурсы
+==============================================================================
+  Метрики по эпохам:
+     эпоха  train loss   val loss   rouge1   rouge2   rougeL  gen_len
+      1.00      2.9254     2.4069    26.98    14.45    21.87     81.3
+      2.00      2.5980     2.2590    30.06    15.48    23.86     82.8
+      3.00      2.4535     2.2048    28.55    13.55    22.51     77.7
+      4.00      2.2719     2.1885    28.42    13.52    22.38     77.7
+
+  ДО обучения vs ПОСЛЕ обучения:
+    метрика             до     после     прирост
+    loss             3.168     2.189      -0.980
+    rouge1          18.442    28.417      +9.975
+    rouge2           7.306    13.519      +6.213
+    rougeL          14.326    22.377      +8.051
+    rougeLsum       15.811    25.218      +9.407
+    gen_len         60.650    77.725     +17.075
+
+  Время обучения: 42.1 мин на CPU
+  Память:         1.44 ГБ (оперативная память процесса)
+  Скорость:       0.56 примеров/с
+
+  Примеры генерации после обучения:
+    --- пример 1 ---
+    вход (начало):  'QUESTION: Warum hat das Zertifikat diesen Status?\nCONTEXT:\n[1] The manufacturer shall perform risk analysis for the particular medical device as descr'
+    эталон:         'Der Status des Zertifikats basiert auf der Durchführung und Dokumentation der Risikobewertung gemäß ISO 14971 sowie der Einhaltung der Dokumentationsa'
+    модель выдала:  'Das Zertifikat hat das Zertifikat 5.2 bis 5.5 Status. Die Implementierung der geplanten Risikoanalyse und die Ergebnisse der Risikoanalyse werden in d'
+    --- пример 2 ---
+    вход (начало):  'QUESTION: Ali lahko navedete klasifikacijo medicinskega pripomočka za državo, kjer ni navedena zahteva glede usposobljenosti osebja za upravljanje tve'
+    эталон:         "Oprostite, vendar ne morem določiti klasifikacije, ker manjka lastnost 'usposobljenost osebja za upravljanje tveganj', ki je ključna za pravilno oceno"
+    модель выдала:  'Ali lahko navedete klasifikacijo medicinskega pripomoka za dravo, kjer ni navedena zahteva glede usposobljenosti osebja za upravljanje tveganj?'
+
+  Все метрики сохранены: D:\Projects\workspace\zerocoder\Perr8.2\results\normassist_metrics.json
+
+[шаг 11 занял 56.5 с]

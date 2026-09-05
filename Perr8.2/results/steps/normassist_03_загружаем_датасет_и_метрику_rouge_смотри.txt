@@ -1,0 +1,30 @@
+==============================================================================
+ШАГ 3 — Загружаем датасет и метрику ROUGE, смотрим структуру
+==============================================================================
+  Загружено за 2.2 с
+
+  Структура датасета:
+  DatasetDict({
+      train: Dataset({
+          features: ['document', 'summary', 'uc', 'kind', 'lang'],
+          num_rows: 356
+      })
+      validation: Dataset({
+          features: ['document', 'summary', 'uc', 'kind', 'lang'],
+          num_rows: 40
+      })
+  })
+
+  Пример (document, первые 400 символов):
+    "QUESTION: Wer ist für die Festlegung des 'bestimmten Verwendungszwecks' eines In-vitro-Diagnostikums (IVD) verantwortlich?\nCONTEXT:\n[1] the IVDR, the sponsor may assume the role of a manufacturer under the IVDR. Refer also to Q7. 7. Who is responsible for assigning the “intended purpose” of the IVD? The intended purpose of an IVD is determined by the manufacturer12 of the device, in accordance wit"
+
+  Пример (summary):
+    'Der bestimmte Verwendungszweck eines IVD wird vom Hersteller des Geräts festgelegt, in Übereinstimmung mit den Anforderungen der IVDR. Wenn ein Sponsor einem Produkt einen medizinischen Zweck zuweist, der der Definition eines IVD gemäß Artikel 2(2) der IVDR entspricht, kann der Sponsor die Rolle ein'
+
+  Метрика ROUGE загружена: rouge
+
+  Уменьшаем выборку (полный размер {'train': 356, 'validation': 40}):
+    train      356
+    validation 40
+
+[шаг 3 занял 2.2 с]

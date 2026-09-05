@@ -1,0 +1,30 @@
+{
+  "en": {
+    "rows": 1091,
+    "tokens": 139732,
+    "unk": 5347,
+    "unk_share": 0.0383,
+    "tokens_per_100_chars": 22.15
+  },
+  "de": {
+    "rows": 1113,
+    "tokens": 163734,
+    "unk": 4841,
+    "unk_share": 0.0296,
+    "tokens_per_100_chars": 26.28
+  },
+  "sl": {
+    "rows": 945,
+    "tokens": 230983,
+    "unk": 6324,
+    "unk_share": 0.0274,
+    "tokens_per_100_chars": 53.08
+  },
+  "ru": {
+    "rows": 1351,
+    "tokens": 377955,
+    "unk": 75605,
+    "unk_share": 0.2,
+    "tokens_per_100_chars": 65.33
+  }
+}

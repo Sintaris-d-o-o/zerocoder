@@ -1,0 +1,62 @@
+{
+  "dataset": "xsum",
+  "gpu": "Tesla T4",
+  "peak_vram": "11.78 ГБ",
+  "train_runtime_sec": 345.5108,
+  "train_loss": 3.1950445693140974,
+  "baseline": {
+    "base_loss": 3.849231004714966,
+    "base_rouge1": 19.1206,
+    "base_rouge2": 2.7858,
+    "base_rougeL": 13.49,
+    "base_rougeLsum": 15.4667,
+    "base_gen_len": 53.66
+  },
+  "final": {
+    "eval_loss": 2.820920944213867,
+    "eval_rouge1": 21.484,
+    "eval_rouge2": 3.8991,
+    "eval_rougeL": 16.166,
+    "eval_rougeLsum": 16.3897,
+    "eval_gen_len": 29.268
+  },
+  "log_history": [
+    {
+      "eval_loss": 2.820920944213867,
+      "eval_model_preparation_time": 0.006,
+      "eval_rouge1": 21.484,
+      "eval_rouge2": 3.8991,
+      "eval_rougeL": 16.166,
+      "eval_rougeLsum": 16.3897,
+      "eval_gen_len": 29.268,
+      "eval_runtime": 99.8379,
+      "eval_samples_per_second": 10.016,
+      "eval_steps_per_second": 0.631,
+      "epoch": 1.0,
+      "step": 313
+    },
+    {
+      "train_runtime": 345.5108,
+      "train_samples_per_second": 14.471,
+      "train_steps_per_second": 0.906,
+      "total_flos": 1325106201624576.0,
+      "train_loss": 3.1950445693140974,
+      "epoch": 1.0,
+      "step": 313
+    },
+    {
+      "eval_loss": 2.820920944213867,
+      "eval_model_preparation_time": 0.006,
+      "eval_rouge1": 21.484,
+      "eval_rouge2": 3.8991,
+      "eval_rougeL": 16.166,
+      "eval_rougeLsum": 16.3897,
+      "eval_gen_len": 29.268,
+      "eval_runtime": 102.0036,
+      "eval_samples_per_second": 9.804,
+      "eval_steps_per_second": 0.618,
+      "epoch": 1.0,
+      "step": 313
+    }
+  ]
+}

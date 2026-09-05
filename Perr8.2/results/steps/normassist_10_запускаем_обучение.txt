@@ -1,0 +1,39 @@
+==============================================================================
+ШАГ 10 — Запускаем обучение
+==============================================================================
+  Сначала — замер ДО обучения (базовая линия, без неё непонятно, что дало дообучение):
+    {
+      "base_loss": 3.1681361198425293,
+      "base_rouge1": 18.4425,
+      "base_rouge2": 7.3058,
+      "base_rougeL": 14.3261,
+      "base_rougeLsum": 15.8108,
+      "base_gen_len": 60.65
+}
+    (замер занял 42 с)
+
+  Обучение:
+{'loss': '3.295', 'grad_norm': '7.912', 'learning_rate': '1.865e-05', 'epoch': '0.2809'}
+{'loss': '2.989', 'grad_norm': '3.926', 'learning_rate': '1.725e-05', 'epoch': '0.5618'}
+{'loss': '2.925', 'grad_norm': '3.405', 'learning_rate': '1.584e-05', 'epoch': '0.8427'}
+{'eval_loss': '2.407', 'eval_model_preparation_time': '0', 'eval_rouge1': '26.98', 'eval_rouge2': '14.45', 'eval_rougeL': '21.87', 'eval_rougeLsum': '24.1', 'eval_gen_len': '81.28', 'eval_runtime': '53.13', 'eval_samples_per_second': '0.753', 'eval_steps_per_second': '0.188', 'epoch': '1'}
+{'loss': '2.636', 'grad_norm': '4.364', 'learning_rate': '1.444e-05', 'epoch': '1.124'}
+{'loss': '2.496', 'grad_norm': '3.135', 'learning_rate': '1.303e-05', 'epoch': '1.404'}
+{'loss': '2.528', 'grad_norm': '3.526', 'learning_rate': '1.163e-05', 'epoch': '1.685'}
+{'loss': '2.598', 'grad_norm': '3.286', 'learning_rate': '1.022e-05', 'epoch': '1.966'}
+{'eval_loss': '2.259', 'eval_model_preparation_time': '0', 'eval_rouge1': '30.06', 'eval_rouge2': '15.48', 'eval_rougeL': '23.86', 'eval_rougeLsum': '26.47', 'eval_gen_len': '82.78', 'eval_runtime': '55', 'eval_samples_per_second': '0.727', 'eval_steps_per_second': '0.182', 'epoch': '2'}
+{'loss': '2.63', 'grad_norm': '3.231', 'learning_rate': '8.82e-06', 'epoch': '2.247'}
+{'loss': '2.515', 'grad_norm': '3.714', 'learning_rate': '7.416e-06', 'epoch': '2.528'}
+{'loss': '2.454', 'grad_norm': '3.179', 'learning_rate': '6.011e-06', 'epoch': '2.809'}
+{'eval_loss': '2.205', 'eval_model_preparation_time': '0', 'eval_rouge1': '28.55', 'eval_rouge2': '13.55', 'eval_rougeL': '22.51', 'eval_rougeLsum': '25.3', 'eval_gen_len': '77.72', 'eval_runtime': '56.12', 'eval_samples_per_second': '0.713', 'eval_steps_per_second': '0.178', 'epoch': '3'}
+{'loss': '2.556', 'grad_norm': '2.07', 'learning_rate': '4.607e-06', 'epoch': '3.09'}
+{'loss': '2.39', 'grad_norm': '3.239', 'learning_rate': '3.202e-06', 'epoch': '3.371'}
+{'loss': '2.416', 'grad_norm': '3.405', 'learning_rate': '1.798e-06', 'epoch': '3.652'}
+{'loss': '2.272', 'grad_norm': '2.798', 'learning_rate': '3.933e-07', 'epoch': '3.933'}
+{'eval_loss': '2.189', 'eval_model_preparation_time': '0', 'eval_rouge1': '28.42', 'eval_rouge2': '13.52', 'eval_rougeL': '22.38', 'eval_rougeLsum': '25.22', 'eval_gen_len': '77.72', 'eval_runtime': '53.4', 'eval_samples_per_second': '0.749', 'eval_steps_per_second': '0.187', 'epoch': '4'}
+{'train_runtime': '2526', 'train_samples_per_second': '0.564', 'train_steps_per_second': '0.141', 'train_loss': '2.622', 'epoch': '4'}
+
+  Обучение заняло 42.1 мин (2526 с)
+  Итоговый training loss: 2.6220
+
+[шаг 10 занял 2568.1 с]

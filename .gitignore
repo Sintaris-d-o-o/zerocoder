@@ -23,3 +23,11 @@ instance/
 Perr8.1/data/
 Perr8.1/TransferLearning-Zerocoder-IR.pptx
 
+# Perr8.2: локальное окружение, чекпоинты обучения и большие исходники урока
+Perr8.2/.venv/
+Perr8.2/runs/
+Perr8.2/data/
+Perr8.2/_task_extract.txt
+Perr8.2/*.pptx
+# рабочая копия выполненного ноутбука — то же самое лежит в results/colab/ под понятным именем
+Perr8.2/*-confirm.ipynb

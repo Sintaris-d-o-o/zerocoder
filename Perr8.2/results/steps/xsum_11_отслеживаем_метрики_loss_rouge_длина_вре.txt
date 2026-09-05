@@ -1,0 +1,34 @@
+==============================================================================
+ШАГ 11 — Отслеживаем метрики: loss, ROUGE, длина, время, ресурсы
+==============================================================================
+  Метрики по эпохам:
+     эпоха  train loss   val loss   rouge1   rouge2   rougeL  gen_len
+      1.00      3.1577     2.8593    20.47     3.42    15.56     29.6
+      2.00      3.0921     2.8152    22.04     4.30    16.49     27.0
+
+  ДО обучения vs ПОСЛЕ обучения:
+    метрика             до     после     прирост
+    loss             3.898     2.815      -1.082
+    rouge1          18.600    22.044      +3.444
+    rouge2           2.248     4.298      +2.049
+    rougeL          13.325    16.489      +3.164
+    rougeLsum       14.924    16.662      +1.738
+    gen_len         50.705    26.995     -23.710
+
+  Время обучения: 88.0 мин на CPU
+  Память:         1.26 ГБ (оперативная память процесса)
+  Скорость:       0.76 примеров/с
+
+  Примеры генерации после обучения:
+    --- пример 1 ---
+    вход (начало):  'Patrick Joseph Connors, 59, his son Patrick Dean Connors, 39, and nephew William Connors, 36, denied requiring a person to perform forced or compulsor'
+    эталон:         'Three family members have been jailed for forcing a man to do heavy labour for tiny amounts in Cardiff.'
+    модель выдала:  "Patrick Joseph Connors, 59, his son Patrick Dean Connors, 39, and nephew William Connors, 36, were convicted of 'exploiting and controlling' their vul"
+    --- пример 2 ---
+    вход (начало):  "The visitors were closing in on three points thanks to Christian Nade's first-half penalty and a fine finish from Robert Thomson.\nBut Martin Boyle's l"
+    эталон:         'Championship leaders Hibernian twice came from behind to salvage a draw at home to Dumbarton.'
+    модель выдала:  'Hibs have won their last three games in the premier league this season, with a 2-0 win over Dundee United.'
+
+  Все метрики сохранены: D:\Projects\workspace\zerocoder\Perr8.2\results\xsum_metrics.json
+
+[шаг 11 занял 143.6 с]

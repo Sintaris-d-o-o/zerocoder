@@ -1,0 +1,370 @@
+# -*- coding: utf-8 -*-
+"""Собирает Colab-ноутбук задания 8.2 (все 11 шагов) из одного источника.
+
+Ноутбук генерируется скриптом, а не правится руками: урок задания 8.1 показал,
+что две копии одного кода со временем расходятся. Пересобрать:
+    python code/build_colab_notebook.py
+"""
+import json
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+OUT = ROOT / "PE8.2_finetuning_T5_colab.ipynb"
+
+cells = []
+
+
+def md(text):
+    cells.append({"cell_type": "markdown", "metadata": {}, "source": text.strip("\n").splitlines(keepends=True)})
+
+
+def code(text):
+    cells.append({"cell_type": "code", "metadata": {}, "execution_count": None, "outputs": [],
+                  "source": text.strip("\n").splitlines(keepends=True)})
+
+
+md("""
+# Задание 8.2 — Fine-tuning T5-Small (Zerocoder, модуль 8)
+
+Все 11 шагов домашнего задания в одном ноутбуке. Работает на **двух датасетах**:
+
+* `DATASET = "xsum"` — эталон задания: новости BBC → саммари в одно предложение;
+* `DATASET = "normassist"` — собственный датасет из **задания 8.1** (нормативный контекст → краткий ответ со ссылками `[n]`).
+
+> **Среда выполнения:** Runtime → Change runtime type → **T4 GPU**.
+> Без GPU ноутбук тоже отработает, но медленнее и с `fp16=False`.
+
+Токен Hugging Face и ключ wandb **не нужны**: `push_to_hub=False`, `report_to=[]`.
+""")
+
+md("## Шаг 1. Установка библиотек и инструментов")
+code("""
+!pip -q install "transformers>=4.44" "datasets>=3.0" "evaluate>=0.4" rouge-score nltk sentencepiece accelerate
+
+import sys, os, time, json
+import torch, transformers, datasets, evaluate
+import numpy as np
+
+for k, v in {"python": sys.version.split()[0], "torch": torch.__version__,
+             "transformers": transformers.__version__, "datasets": datasets.__version__,
+             "evaluate": evaluate.__version__}.items():
+    print(f"{k:<15} {v}")
+
+HAS_GPU = torch.cuda.is_available()
+print("\\nУстройство:", torch.cuda.get_device_name(0) if HAS_GPU else f"CPU ({os.cpu_count()} ядер)")
+if HAS_GPU:
+    !nvidia-smi --query-gpu=name,memory.total,memory.used --format=csv
+""")
+
+md("""
+## Шаг 2. Определяем модель T5-Small и датасет
+
+`DATASET = "xsum"` — как у эксперта. Поставь `"normassist"`, чтобы обучаться на собственных
+данных из задания 8.1 (файлы `train.jsonl` / `validation.jsonl` из папки
+`Perr8.2/data/normassist_seq2seq/` нужно загрузить в Colab через **Files → Upload**).
+""")
+code("""
+model_checkpoint = "t5-small"
+DATASET = "xsum"          # "xsum" или "normassist"
+prefix = "summarize: "
+
+# Размеры выборки: урок сам предлагает уменьшать датасет под лимиты Colab.
+N_TRAIN, N_VAL = 5000, 1000
+EPOCHS, BATCH_SIZE, LR = 1, 16, 2e-5
+MAX_INPUT, MAX_TARGET = 1024, 128
+
+print(f"Модель:  {model_checkpoint}")
+print(f"Датасет: {DATASET}")
+print(f"Префикс задачи для T5: {prefix!r}")
+""")
+
+md("## Шаг 3. Загружаем датасет и метрику ROUGE, смотрим структуру")
+code("""
+from datasets import load_dataset
+
+if DATASET == "xsum":
+    raw_datasets = load_dataset("EdinburghNLP/xsum")
+else:
+    raw_datasets = load_dataset("json", data_files={"train": "train.jsonl",
+                                                    "validation": "validation.jsonl"})
+metric = evaluate.load("rouge")
+
+print(raw_datasets)
+print("\\nПример document:", raw_datasets["train"][0]["document"][:400])
+print("\\nПример summary :", raw_datasets["train"][0]["summary"][:300])
+""")
+
+code("""
+# Уменьшаем размер датасета под ресурсы Colab
+raw_datasets["train"] = raw_datasets["train"].shuffle(seed=42).select(range(min(N_TRAIN, len(raw_datasets["train"]))))
+raw_datasets["validation"] = raw_datasets["validation"].shuffle(seed=42).select(range(min(N_VAL, len(raw_datasets["validation"]))))
+print({k: len(v) for k, v in raw_datasets.items()})
+""")
+
+md("""
+## Шаг 4. Токенизация данных
+
+Главное правило урока: **токенизатор берём от той же модели**. Ячейка ниже это же и проверяет
+на своих данных — считает долю `<unk>` (символов, которых нет в словаре модели).
+""")
+code("""
+from transformers import AutoTokenizer
+
+tokenizer = AutoTokenizer.from_pretrained(model_checkpoint)
+print("Словарь:", tokenizer.vocab_size, "токенов")
+print(tokenizer("Hello, this one sentence!"))
+
+def preprocess_function(examples):
+    inputs = [prefix + doc for doc in examples["document"]]
+    model_inputs = tokenizer(inputs, max_length=MAX_INPUT, truncation=True)
+    labels = tokenizer(text_target=examples["summary"], max_length=MAX_TARGET, truncation=True)
+    model_inputs["labels"] = labels["input_ids"]
+    return model_inputs
+
+demo = preprocess_function(raw_datasets["train"][:2])
+print("\\ninput_ids[0][:24] =", demo["input_ids"][0][:24])
+print("labels[0][:24]    =", demo["labels"][0][:24])
+
+ids = [i for x in demo["input_ids"] for i in x]
+print(f"доля <unk>: {sum(i == tokenizer.unk_token_id for i in ids) / len(ids):.2%}")
+
+# remove_columns обязателен: без него в датасете остаются исходные текстовые колонки
+# (document/summary), и упаковщик на шаге 7 упадёт с "too many dimensions 'str'".
+tokenized_datasets = raw_datasets.map(preprocess_function, batched=True,
+                                      remove_columns=raw_datasets["train"].column_names)
+print("колонки после токенизации:", tokenized_datasets["train"].column_names)
+tokenized_datasets
+""")
+
+md("## Шаг 5. Инициализируем модель T5-Small")
+code("""
+from transformers import (AutoModelForSeq2SeqLM, DataCollatorForSeq2Seq,
+                          Seq2SeqTrainingArguments, Seq2SeqTrainer)
+
+model = AutoModelForSeq2SeqLM.from_pretrained(model_checkpoint)
+total = sum(p.numel() for p in model.parameters())
+print(type(model).__name__)
+print(f"Параметров: {total:,} — обучаются все (полный fine-tuning, без LoRA)")
+""")
+
+md("## Шаг 6. Задаём гиперпараметры обучения")
+code("""
+model_name = model_checkpoint.split("/")[-1]
+args = Seq2SeqTrainingArguments(
+    output_dir=f"{model_name}-finetuned-{DATASET}",
+    eval_strategy="epoch",
+    learning_rate=LR,
+    per_device_train_batch_size=BATCH_SIZE,
+    per_device_eval_batch_size=BATCH_SIZE,
+    weight_decay=0.01,
+    save_total_limit=3,
+    num_train_epochs=EPOCHS,
+    predict_with_generate=True,
+    generation_max_length=MAX_TARGET,
+    fp16=HAS_GPU,        # fp16 только на GPU
+    push_to_hub=False,   # ничего не публикуем -> токен HF не нужен
+    report_to=[],        # без wandb -> ключ wandb не нужен
+)
+args
+""")
+
+md("## Шаг 7. Создаём упаковщик данных")
+code("""
+data_collator = DataCollatorForSeq2Seq(tokenizer, model=model)
+batch = data_collator([tokenized_datasets["train"][i] for i in range(4)])
+{k: tuple(v.shape) for k, v in batch.items()}
+""")
+
+md("## Шаг 8. Функция вычисления метрик ROUGE (+ своя метрика длины)")
+code("""
+import nltk
+for pkg in ("punkt_tab", "punkt"):
+    try: nltk.download(pkg, quiet=True)
+    except Exception: pass
+
+def split_sentences(text):
+    try:
+        return nltk.sent_tokenize(text)
+    except Exception:
+        return [s for s in text.replace(". ", ".\\n").split("\\n") if s]
+
+def compute_metrics(eval_pred):
+    predictions, labels = eval_pred
+    predictions = np.where(predictions != -100, predictions, tokenizer.pad_token_id)
+    decoded_preds = tokenizer.batch_decode(predictions, skip_special_tokens=True)
+    labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
+    decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
+    decoded_preds = ["\\n".join(split_sentences(p.strip())) for p in decoded_preds]
+    decoded_labels = ["\\n".join(split_sentences(l.strip())) for l in decoded_labels]
+    result = metric.compute(predictions=decoded_preds, references=decoded_labels, use_stemmer=True)
+    result = {k: v * 100 for k, v in result.items()}
+    result["gen_len"] = float(np.mean([np.count_nonzero(p != tokenizer.pad_token_id) for p in predictions]))
+    return {k: round(float(v), 4) for k, v in result.items()}
+""")
+
+md("## Шаг 9. Передаём всё в Seq2SeqTrainer")
+code("""
+trainer = Seq2SeqTrainer(
+    model=model,
+    args=args,
+    train_dataset=tokenized_datasets["train"],
+    eval_dataset=tokenized_datasets["validation"],
+    data_collator=data_collator,
+    compute_metrics=compute_metrics,
+)
+print(f"шагов на эпоху: ~{len(tokenized_datasets['train']) // BATCH_SIZE}")
+""")
+
+md("""
+## Шаг 10. Запускаем обучение
+
+Сначала — замер **до** обучения. Без базовой линии нельзя сказать, что именно дало дообучение.
+""")
+code("""
+baseline = trainer.evaluate(metric_key_prefix="base")
+print({k: v for k, v in baseline.items() if "rouge" in k or "loss" in k or "gen_len" in k})
+""")
+code("""
+t0 = time.time()
+train_result = trainer.train()
+train_time = time.time() - t0
+print(f"\\nОбучение заняло {train_time/60:.1f} мин, training loss = {train_result.training_loss:.4f}")
+""")
+
+md("## Шаг 11. Отслеживаем метрики: loss, ROUGE, длина, время, GPU")
+code("""
+# историю снимаем ДО финального evaluate, иначе последняя эпоха попадёт в таблицу дважды
+hist = list(trainer.state.log_history)
+final = trainer.evaluate()
+
+print(f"{'эпоха':>6} {'val loss':>10} {'rouge1':>8} {'rouge2':>8} {'rougeL':>8} {'gen_len':>8}")
+for h in hist:
+    if "eval_loss" in h:
+        print(f"{h['epoch']:>6.2f} {h['eval_loss']:>10.4f} {h.get('eval_rouge1',0):>8.2f} "
+              f"{h.get('eval_rouge2',0):>8.2f} {h.get('eval_rougeL',0):>8.2f} {h.get('eval_gen_len',0):>8.1f}")
+
+print("\\nДО обучения -> ПОСЛЕ обучения:")
+for m in ("loss", "rouge1", "rouge2", "rougeL", "gen_len"):
+    b, f = baseline.get(f"base_{m}"), final.get(f"eval_{m}")
+    if b is not None and f is not None:
+        print(f"  {m:<10}{b:>9.3f} -> {f:>9.3f}   ({f-b:+.3f})")
+
+print(f"\\nВремя обучения: {train_time/60:.1f} мин")
+if HAS_GPU:
+    print(f"Пик VRAM: {torch.cuda.max_memory_allocated()/1e9:.2f} ГБ")
+    !nvidia-smi --query-gpu=name,memory.used,utilization.gpu --format=csv
+""")
+
+code("""
+# Живые примеры генерации — глазами, а не только по метрике
+model.eval()
+for i in range(3):
+    row = raw_datasets["validation"][i]
+    enc = tokenizer(prefix + row["document"], max_length=MAX_INPUT,
+                    truncation=True, return_tensors="pt").to(model.device)
+    with torch.no_grad():
+        out = model.generate(**enc, max_length=MAX_TARGET, num_beams=1)
+    print(f"--- пример {i+1} ---")
+    print("эталон:        ", row["summary"][:200])
+    print("модель выдала: ", tokenizer.decode(out[0], skip_special_tokens=True)[:200], "\\n")
+""")
+
+code("""
+# Сохраняем все метрики рядом с ноутбуком
+json.dump({"dataset": DATASET, "train_time_sec": round(train_time, 1),
+           "train_loss": train_result.training_loss,
+           "baseline": baseline, "final": final,
+           "log_history": hist},
+          open(f"metrics_{DATASET}.json", "w", encoding="utf-8"), ensure_ascii=False, indent=2)
+print("сохранено:", f"metrics_{DATASET}.json")
+""")
+
+md("""
+## Шаг 12. Сохраняем доказательства прогона на Google Drive
+
+Ячейка складывает всё, что нужно приложить к домашнему заданию, в папку на Google Drive:
+метрики, текстовый отчёт, графики и характеристики GPU. Диск смонтирован локально
+(`J:/My Drive/...`), поэтому файлы сами окажутся на компьютере — забирать вручную не нужно.
+
+**Отдельно скачай сам ноутбук с выводами:** File → Download → Download .ipynb.
+В нём сохранён вывод каждой ячейки — это и есть «скриншоты выполнения каждого этапа»
+в наиболее убедительном виде.
+""")
+code("""
+from google.colab import drive
+drive.mount('/content/drive')
+
+import shutil, subprocess
+from pathlib import Path
+
+OUT = Path('/content/drive/MyDrive/Colab Notebooks/sintaris/perr8.2')
+OUT.mkdir(parents=True, exist_ok=True)
+tag = f"{DATASET}_colab"
+
+# 1) метрики целиком
+shutil.copy(f"metrics_{DATASET}.json", OUT / f"metrics_{tag}.json")
+
+# 2) текстовый отчёт о прогоне — то, что просит пункт 11 задания
+gpu_name = torch.cuda.get_device_name(0) if HAS_GPU else "CPU"
+peak = f"{torch.cuda.max_memory_allocated()/1e9:.2f} ГБ" if HAS_GPU else "—"
+lines = [
+    f"Задание 8.2 — fine-tuning {model_checkpoint} на датасете {DATASET}",
+    f"Оборудование: {gpu_name} | fp16={HAS_GPU} | пик VRAM: {peak}",
+    f"Строк: train {len(tokenized_datasets['train'])}, validation {len(tokenized_datasets['validation'])}",
+    f"Эпох: {EPOCHS} | batch: {BATCH_SIZE} | lr: {LR} | вход/выход: {MAX_INPUT}/{MAX_TARGET}",
+    f"Время обучения: {train_time/60:.1f} мин | итоговый training loss: {train_result.training_loss:.4f}",
+    "",
+    f"{'эпоха':>6} {'val loss':>10} {'rouge1':>8} {'rouge2':>8} {'rougeL':>8} {'gen_len':>8}",
+]
+for h in hist:
+    if "eval_loss" in h:
+        lines.append(f"{h['epoch']:>6.2f} {h['eval_loss']:>10.4f} {h.get('eval_rouge1',0):>8.2f} "
+                     f"{h.get('eval_rouge2',0):>8.2f} {h.get('eval_rougeL',0):>8.2f} {h.get('eval_gen_len',0):>8.1f}")
+lines += ["", "ДО обучения -> ПОСЛЕ обучения:"]
+for m in ("loss", "rouge1", "rouge2", "rougeL", "gen_len"):
+    b, f = baseline.get(f"base_{m}"), final.get(f"eval_{m}")
+    if b is not None and f is not None:
+        lines.append(f"  {m:<10}{b:>9.3f} -> {f:>9.3f}   ({f-b:+.3f})")
+with open(OUT / f"report_{tag}.txt", "w", encoding="utf-8") as fh:
+    for line in lines:
+        print(line, file=fh)
+
+# 3) график обучения
+import matplotlib.pyplot as plt
+tr = [(h["epoch"], h["loss"]) for h in hist if "loss" in h and "eval_loss" not in h]
+ev = [(h["epoch"], h["eval_loss"]) for h in hist if "eval_loss" in h]
+fig, ax = plt.subplots(1, 2, figsize=(11, 4))
+if tr: ax[0].plot(*zip(*tr), label="train")
+if ev: ax[0].plot(*zip(*ev), marker="o", label="validation")
+ax[0].set_title("loss"); ax[0].set_xlabel("эпоха"); ax[0].legend()
+rg = [(h["epoch"], h.get("eval_rouge1"), h.get("eval_rouge2"), h.get("eval_rougeL")) for h in hist if "eval_rouge1" in h]
+for i, nm in ((1, "ROUGE-1"), (2, "ROUGE-2"), (3, "ROUGE-L")):
+    if rg: ax[1].plot([r[0] for r in rg], [r[i] for r in rg], marker="o", label=nm)
+ax[1].set_title("ROUGE на валидации"); ax[1].set_xlabel("эпоха"); ax[1].legend()
+fig.suptitle(f"{model_checkpoint} · {DATASET} · {gpu_name}")
+fig.tight_layout(); fig.savefig(OUT / f"training_{tag}.png", dpi=130)
+
+# 4) характеристики GPU как отдельный документ
+if HAS_GPU:
+    (OUT / f"gpu_{tag}.txt").write_text(subprocess.run(["nvidia-smi"], capture_output=True, text=True).stdout,
+                                        encoding="utf-8")
+
+print("Сохранено на Google Drive:", OUT)
+for f in sorted(OUT.glob(f"*{tag}*")):
+    print("  ", f.name, f"({f.stat().st_size/1024:.0f} КБ)")
+""")
+
+nb = {
+    "cells": cells,
+    "metadata": {
+        "accelerator": "GPU",
+        "colab": {"provenance": [], "gpuType": "T4"},
+        "kernelspec": {"display_name": "Python 3", "name": "python3"},
+        "language_info": {"name": "python"},
+    },
+    "nbformat": 4,
+    "nbformat_minor": 0,
+}
+
+OUT.write_text(json.dumps(nb, ensure_ascii=False, indent=1), encoding="utf-8")
+print(f"Готово: {OUT}  ({len(cells)} ячеек)")

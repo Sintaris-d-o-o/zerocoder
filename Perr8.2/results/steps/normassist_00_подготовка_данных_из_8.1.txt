@@ -1,0 +1,18 @@
+Прочитано строк из датасета 8.1: 4500
+  по метке языка: {'ru': 1351, 'en': 1091, 'de': 1113, 'sl': 945}
+
+Отбор:
+  отброшено: кириллица в тексте     3429  (76%)
+  отброшено: тип строки              675  (15%)
+  взято                              396  (9%)
+
+Осталось строк: 396 из 4500 — это и есть та часть нашего датасета,
+которую англоязычный токенизатор T5 вообще способен прочитать без потерь.
+  по метке языка: {'en': 205, 'de': 138, 'sl': 53}
+  по типу:        {'grounded': 215, 'failclosed': 76, 'wording': 70, 'refuse': 27, 'adversarial': 8}
+validation      40 строк -> D:\Projects\workspace\zerocoder\Perr8.2\data\normassist_seq2seq\validation.jsonl
+train          356 строк -> D:\Projects\workspace\zerocoder\Perr8.2\data\normassist_seq2seq\train.jsonl
+
+Пример пары:
+  document: QUESTION: Wer ist für die Festlegung des 'bestimmten Verwendungszwecks' eines In-vitro-Diagnostikums (IVD) verantwortlich? / CONTEXT: / [1] the IVDR, the sponsor may assume the role of a manufacturer under the IVDR. Refer al ...
+  summary : Der bestimmte Verwendungszweck eines IVD wird vom Hersteller des Geräts festgelegt, in Übereinstimmung mit den Anforderungen der IVDR. Wenn ein Sponsor einem Produkt einen medizini ...
