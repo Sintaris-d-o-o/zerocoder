@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Генератор логотипов</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎨</text></svg>">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Генератор логотипов</h1>
+    <p class="sub">Yandex ART · задание 10.2</p>
+    {% if demo %}<div class="badge-demo">Режим демонстрации: обращений к API нет, вместо картинок заглушки</div>{% endif %}
+  </header>
+
+  <form id="form" class="card">
+    <label class="field">
+      <span>Название компании <b class="req">*</b></span>
+      <input id="company" name="company" maxlength="80" placeholder="например, SINTARIS" required>
+    </label>
+
+    <label class="field">
+      <span>Что добавить к описанию</span>
+      <input id="extra" name="extra" maxlength="300"
+             placeholder="например, щит с галочкой и медицинский крест">
+      <small>Необязательно. Этот текст дописывается к выбранному стилю.</small>
+    </label>
+
+    <div class="row">
+      <label class="field">
+        <span>Стиль</span>
+        <select id="style">
+          {% for key, s in styles.items() %}<option value="{{ key }}">{{ s.title }}</option>{% endfor %}
+        </select>
+      </label>
+
+      <label class="field">
+        <span>Формат</span>
+        <select id="format">
+          {% for key, f in formats.items() %}<option value="{{ key }}">{{ f.title }}</option>{% endfor %}
+        </select>
+      </label>
+
+      <label class="field">
+        <span>Зерно</span>
+        <input id="seed" inputmode="numeric" placeholder="пусто = случайно">
+        <small>Одно и то же зерно даёт похожий результат.</small>
+      </label>
+    </div>
+
+    <button id="go" type="submit">Сгенерировать</button>
+  </form>
+
+  <section id="status" class="card hidden">
+    <div class="spinner" aria-hidden="true"></div>
+    <div>
+      <div id="status-text">Отправляем запрос…</div>
+      <div id="status-prompt" class="prompt"></div>
+    </div>
+  </section>
+
+  <section id="result" class="card hidden">
+    <img id="result-img" alt="Сгенерированный логотип">
+    <div class="result-meta">
+      <div id="result-info"></div>
+      <div class="actions">
+        <a id="result-download" class="btn" download>Скачать</a>
+        <button id="result-repeat" class="btn secondary" type="button">Повторить с тем же зерном</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="error" class="card error hidden"></section>
+
+  {% if gallery %}
+  <section class="gallery">
+    <h2>Раньше сгенерированное</h2>
+    <div class="grid">
+      {% for item in gallery %}
+      <figure>
+        <img src="{{ url_for('image', filename=item.filename) }}" alt="{{ item.company }}" loading="lazy">
+        <figcaption>
+          <b>{{ item.company }}</b><br>
+          {{ styles.get(item.style, {}).get('title', item.style) }} · зерно {{ item.seed }}
+        </figcaption>
+      </figure>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+</div>
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
