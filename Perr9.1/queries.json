@@ -1,0 +1,36 @@
+{
+  "description": "24 вопроса из практики Норм-ассистента SINTARIS (учёт сертификатов медизделий, регламенты MDR/IVDR). Источники: каталог сценариев UC1–UC23, контрольный набор вопросов реального бота (qa_golden_cert), демонстрация задания 8.1. Только вопросы, без текстов стандартов ISO.",
+  "tiers": {
+    "simple": "definition, abbreviation, one field of a record (status, date), a single named authority, one fixed number — answerable in 1–3 sentences",
+    "medium": "a specific requirement or procedure from one regulation/article — needs regulatory knowledge, one source, a structured answer",
+    "hard": "reasoning across several provisions — device classification by Annex VIII rules, transition provisions with conditions and evidence, comparison of two regulations, gap analysis, audit preparation"
+  },
+  "queries": [
+    {"id": "S1", "tier": "simple", "uc": "UC15", "question": "Certificate C-102: validUntil = 2024-11-30, status = Expired. Why is it shown as Expired?"},
+    {"id": "S2", "tier": "simple", "uc": "UC3",  "question": "What does the abbreviation IVDR stand for?"},
+    {"id": "S3", "tier": "simple", "uc": "national law", "question": "Which German authority is responsible for medical devices under the MPDG?"},
+    {"id": "S4", "tier": "simple", "uc": "national law", "question": "Which authority in Slovenia is competent for medical devices?"},
+    {"id": "S5", "tier": "simple", "uc": "UC4",  "question": "What is a notified body?"},
+    {"id": "S6", "tier": "simple", "uc": "UC15", "question": "Certificate Z-17: validUntil = 2026-11-15, status = Expiring soon. Why this status?"},
+    {"id": "S7", "tier": "simple", "uc": "UC10", "question": "What is a Declaration of Conformity?"},
+    {"id": "S8", "tier": "simple", "uc": "UC12", "question": "For how many years at most is a certificate issued by a notified body under the MDR valid?"},
+
+    {"id": "M1", "tier": "medium", "uc": "UC1",  "question": "What are the general obligations of manufacturers under Article 10 of the MDR?"},
+    {"id": "M2", "tier": "medium", "uc": "UC2",  "question": "Which economic operators must register in EUDAMED, and under which article of the MDR?"},
+    {"id": "M3", "tier": "medium", "uc": "vigilance", "question": "What must a manufacturer report as a serious incident under the MDR, and within which deadlines?"},
+    {"id": "M4", "tier": "medium", "uc": "PMS",  "question": "What has to be in a post-market surveillance plan under the MDR?"},
+    {"id": "M5", "tier": "medium", "uc": "UC4",  "question": "What is the procedure for designating a notified body under the MDR?"},
+    {"id": "M6", "tier": "medium", "uc": "UC6",  "question": "How does the European Commission list harmonised standards for medical devices?"},
+    {"id": "M7", "tier": "medium", "uc": "IVDR", "question": "What does the IVDR require in a performance evaluation of an in vitro diagnostic device?"},
+    {"id": "M8", "tier": "medium", "uc": "UC4",  "question": "Which conformity assessment procedures are available for a class IIa device under the MDR?"},
+
+    {"id": "H1", "tier": "hard", "uc": "UC7/UC18", "question": "Which MDR classification rule applies to software that calculates insulin doses for a patient, which class results, and why?"},
+    {"id": "H2", "tier": "hard", "uc": "UC17", "question": "My MDD certificate expired in May 2024. Does Regulation (EU) 2023/607 extend its validity, and what evidence must I provide?"},
+    {"id": "H3", "tier": "hard", "uc": "UC17", "question": "Until when may legacy devices be placed on the market under Regulation (EU) 2023/607, and under which conditions?"},
+    {"id": "H4", "tier": "hard", "uc": "UC2",  "question": "What are the differences in manufacturer obligations towards competent authorities between MDR 2017/745 and IVDR 2017/746?"},
+    {"id": "H5", "tier": "hard", "uc": "UC18", "question": "Classify under MDR Annex VIII a non-invasive device intended to modify the biological composition of blood before it is re-infused into the patient. Which class and why?"},
+    {"id": "H6", "tier": "hard", "uc": "UC9",  "question": "EN ISO 14971 has a new edition. Which of our certificates (ISO 13485 QMS certificate, EU certificate for a class IIa product, Declaration of Conformity) are affected, and what must we do?"},
+    {"id": "H7", "tier": "hard", "uc": "UC10", "question": "A Declaration of Conformity lists only the manufacturer name, the product name and the CE mark. Does it contain everything MDR Annex IV requires? What is missing?"},
+    {"id": "H8", "tier": "hard", "uc": "UC14", "question": "An auditor is coming to review product P (class IIa, sterile). Which documents should we prepare, and where are the likely gaps if we have no sterilisation validation protocol?"}
+  ]
+}

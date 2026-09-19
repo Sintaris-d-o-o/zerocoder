@@ -31,3 +31,7 @@ Perr8.2/_task_extract.txt
 Perr8.2/*.pptx
 # рабочая копия выполненного ноутбука — то же самое лежит в results/colab/ под понятным именем
 Perr8.2/*-confirm.ipynb
+
+# Perr9.1: локальное окружение
+Perr9.1/.venv/
+Perr9.1/results_smoke/
