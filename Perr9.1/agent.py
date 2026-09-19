@@ -31,6 +31,7 @@ load_dotenv(HERE / ".env")          # локальная копия рядом �
 
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434").rstrip("/")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gemma4:12b")
+OPENAI_TIMEOUT_S = float(os.getenv("OPENAI_TIMEOUT_S", "300"))   # потолок на один запрос к OpenAI
 
 PRICING_FILE = HERE / "pricing.json"
 PRICING = json.loads(PRICING_FILE.read_text(encoding="utf-8")) if PRICING_FILE.exists() else {"models": {}}
@@ -132,7 +133,9 @@ class Backends:
                     max_tokens: Optional[int], reasoning_effort: Optional[str]) -> tuple[str, dict]:
         if self._openai is None:
             from openai import OpenAI   # импорт здесь, чтобы тесты без ключа не падали
-            self._openai = OpenAI()
+            # Жёсткий таймаут: на живой сети один запрос однажды провисел 2 часа и испортил
+            # замер времени всего эксперимента. Лучше упасть и повторить, чем ждать молча.
+            self._openai = OpenAI(timeout=OPENAI_TIMEOUT_S, max_retries=2)
         kwargs: dict = {}
         if max_tokens:
             kwargs["max_completion_tokens"] = max_tokens

@@ -141,12 +141,14 @@ def chart_comparison(summary: dict, out: Path) -> None:
     qtier = {}
     for q in json.loads((HERE / "queries.json").read_text(encoding="utf-8"))["queries"]:
         qtier[q["id"]] = q["tier"]
-    groups = ["все"] + tiers
-    a_vals, b_vals = [], []
-    for g in groups:
+    groups, a_vals, b_vals = [], [], []
+    for g in ["все"] + tiers:
         ids = [i for i in scores if g == "все" or qtier.get(i) == g]
         a_list = [scores[i]["A"] for i in ids if scores[i]["A"] is not None]
         b_list = [scores[i]["B"] for i in ids if scores[i]["B"] is not None]
+        if not a_list and not b_list:
+            continue   # группа без оценок — не рисуем пустой столбик
+        groups.append(g)
         a_vals.append(sum(a_list) / len(a_list) if a_list else 0)
         b_vals.append(sum(b_list) / len(b_list) if b_list else 0)
     x = range(len(groups))
@@ -156,9 +158,10 @@ def chart_comparison(summary: dict, out: Path) -> None:
         ax.text(i - 0.18, a + 0.05, f"{a:.2f}", ha="center", fontsize=9, color=INK)
         ax.text(i + 0.18, b + 0.05, f"{b:.2f}", ha="center", fontsize=9, color=INK)
     ax.set_xticks(list(x), groups)
-    ax.set_ylim(0, 5.6)
+    ax.set_ylim(0, 6.6)
+    ax.set_yticks([0, 1, 2, 3, 4, 5])
     _style(ax, "Средняя оценка экзаменатора (1–5)")
-    ax.legend(frameon=False, fontsize=9, loc="lower right")
+    ax.legend(frameon=False, fontsize=9, loc="upper center", ncol=2)
 
     fig.tight_layout(rect=(0, 0, 1, 0.93))
     fig.savefig(out, dpi=150, facecolor=SURFACE)
