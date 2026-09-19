@@ -1,0 +1,39 @@
+====================================================================================================
+ШАГ 3. Проверка классификатора: корректно ли дежурный определяет уровень
+====================================================================================================
+id ожидали дежурный ответил получили верно  время, с                                                                 вопрос
+S1  simple           simple   simple     ✓    20.119 Certificate C-102: validUntil = 2024-11-30, status = Expired. Why is i
+S2  simple           simple   simple     ✓    17.241                             What does the abbreviation IVDR stand for?
+S3  simple           simple   simple     ✓    16.714 Which German authority is responsible for medical devices under the MP
+S4  simple           simple   simple     ✓    16.512          Which authority in Slovenia is competent for medical devices?
+S5  simple           simple   simple     ✓    16.838                                               What is a notified body?
+S6  simple           simple   simple     ✓    19.738 Certificate Z-17: validUntil = 2026-11-15, status = Expiring soon. Why
+S7  simple           simple   simple     ✓    16.457                                   What is a Declaration of Conformity?
+S8  simple           simple   simple     ✓    17.814 For how many years at most is a certificate issued by a notified body 
+M1  medium           medium   medium     ✓    17.347 What are the general obligations of manufacturers under Article 10 of 
+M2  medium           medium   medium     ✓    17.304 Which economic operators must register in EUDAMED, and under which art
+M3  medium             hard     hard     ✗    18.653 What must a manufacturer report as a serious incident under the MDR, a
+M4  medium           medium   medium     ✓    16.828       What has to be in a post-market surveillance plan under the MDR?
+M5  medium           medium   medium     ✓    17.749   What is the procedure for designating a notified body under the MDR?
+M6  medium           medium   medium     ✓    19.117 How does the European Commission list harmonised standards for medical
+M7  medium           medium   medium     ✓    18.697 What does the IVDR require in a performance evaluation of an in vitro 
+M8  medium           medium   medium     ✓    19.323 Which conformity assessment procedures are available for a class IIa d
+H1    hard             hard     hard     ✓    18.692 Which MDR classification rule applies to software that calculates insu
+H2    hard             hard     hard     ✓    18.643 My MDD certificate expired in May 2024. Does Regulation (EU) 2023/607 
+H3    hard             hard     hard     ✓    18.851 Until when may legacy devices be placed on the market under Regulation
+H4    hard             hard     hard     ✓    17.951 What are the differences in manufacturer obligations towards competent
+H5    hard             hard     hard     ✓    18.019 Classify under MDR Annex VIII a non-invasive device intended to modify
+H6    hard             hard     hard     ✓    19.032 EN ISO 14971 has a new edition. Which of our certificates (ISO 13485 Q
+H7    hard             hard     hard     ✓    17.613 A Declaration of Conformity lists only the manufacturer name, the prod
+H8    hard             hard     hard     ✓    19.392 An auditor is coming to review product P (class IIa, sterile). Which d
+
+Точность: 23 из 24 = 96%; среднее время классификации 18.1 с
+
+Матрица ошибок (строки — ожидали, столбцы — получили):
+получили  simple  medium  hard
+ожидали                       
+simple         8       0     0
+medium         0       7     1
+hard           0       0     8
+
+Точность по уровням: simple: 100%, medium: 88%, hard: 100%

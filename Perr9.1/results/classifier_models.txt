@@ -1,0 +1,5 @@
+Сравнение локальных моделей в роли дежурного (классификация 24 вопросов, Ollama, CPU)
+
+модель          точность  среднее время, с  ошибки (id: ожидали→получили)
+gemma4:e2b           58%               5.4  S3: simple→medium, S4: simple→medium, S8: simple→medium, H1: hard→medium, H2: hard→medium, H3: hard→medium, H4: hard→medium, H5: hard→medium, H7: hard→medium, H8: hard→medium
+gemma4:12b           96%              18.1  M3: medium→hard

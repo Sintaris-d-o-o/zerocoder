@@ -1,0 +1,42 @@
+====================================================================================================
+ШАГ 5. Режим Б: мультимодельность — дежурный + модель по уровню
+====================================================================================================
+id ожидали дежурный модель ответа  вход  выход  рассужд.  стоимость $ (с дежурным)  время, с (с дежурным)
+S1  simple   simple    gemma4:12b   130    119         0                   0.00000                 72.238
+S2  simple   simple    gemma4:12b   104     60         0                   0.00000                 38.156
+S3  simple   simple    gemma4:12b   108    112         0                   0.00000                 49.478
+S4  simple   simple    gemma4:12b   105    113         0                   0.00000                 49.647
+S5  simple   simple    gemma4:12b   101    344         0                   0.00000                105.247
+S6  simple   simple    gemma4:12b   126    268         0                   0.00000                 90.251
+S7  simple   simple    gemma4:12b   103    387         0                   0.00000                114.367
+S8  simple   simple    gemma4:12b   114    199         0                   0.00000                 71.210
+M1  medium   medium    gpt-5-mini    91   1938      1472                   0.00390                 39.880
+M2  medium   medium    gpt-5-mini    95   1689      1600                   0.00340                 37.243
+M3  medium     hard         gpt-5    94   3151      2816                   0.03163                 57.046
+M4  medium   medium    gpt-5-mini    90   2872      1792                   0.00577                 49.951
+M5  medium   medium    gpt-5-mini    90   2684      1984                   0.00539                 50.896
+M6  medium   medium    gpt-5-mini    89   2874      2496                   0.00577                 60.673
+M7  medium   medium    gpt-5-mini    93   2218      1664                   0.00446                 47.419
+M8  medium   medium    gpt-5-mini    92   2154      1920                   0.00433                 46.159
+H1    hard     hard         gpt-5    98   2169      1984                   0.02181                 51.077
+H2    hard     hard         gpt-5   108   6056      5056                   0.06069                105.257
+H3    hard     hard         gpt-5   102   4272      3840                   0.04285                 79.206
+H4    hard     hard         gpt-5   102   6598      5440                   0.06611                100.336
+H5    hard     hard         gpt-5   109   2866      2752                   0.02880                 50.048
+H6    hard     hard         gpt-5   123   3957      3328                   0.03972                 60.511
+H7    hard     hard         gpt-5   109   2914      2560                   0.02928                 44.469
+H8    hard     hard         gpt-5   112   5137      3584                   0.05151                 72.920
+----------------------------------------------------------------------------------------------------
+ИТОГО режим Б: стоимость $0.40542, время 1543.7 с, токенов вход 2488 / выход 55151
+
+Распределение по моделям:
+               вопросов  стоимость    время
+модель ответа                              
+gemma4:12b            8    0.00000  590.594
+gpt-5                 9    0.37240  620.870
+gpt-5-mini            7    0.03302  332.221
+
+Пример ответа локальной модели (S1, gemma4:12b):
+The certificate is shown as **Expired** because the current date has surpassed the `validUntil` date of **2024-11-30**.
+
+Under **EU MDR 2017/745**, a certificate remains valid only until its expiration date. Once this date passes, the Notified Body (NB) must issue a new certificate or an extension to maintain compliance. In systems like **EUDAMED**, certificates with a status of "Expired" are no longer valid for market placement and indicate that the manufacturer's conformity assessment has laps … [ещё 3 символов]

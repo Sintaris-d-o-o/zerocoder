@@ -35,3 +35,5 @@ Perr8.2/*-confirm.ipynb
 # Perr9.1: локальное окружение
 Perr9.1/.venv/
 Perr9.1/results_smoke/
+Perr9.1/results/cache.jsonl*
+Perr9.1/results/run.log

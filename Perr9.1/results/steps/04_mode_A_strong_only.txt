@@ -1,0 +1,35 @@
+====================================================================================================
+ШАГ 4. Режим А: все вопросы — только в мощную модель (gpt-5)
+====================================================================================================
+id уровень модель  вход  выход  рассужд.  стоимость $  время, с
+S1  simple  gpt-5   105   2804      2624      0.02817    36.134
+S2  simple  gpt-5    85    295       256      0.00306     2.923
+S3  simple  gpt-5    89   1837      1728      0.01848    16.935
+S4  simple  gpt-5    86   2651      2560      0.02662    24.623
+S5  simple  gpt-5    82   1972      1728      0.01982    34.308
+S6  simple  gpt-5   102   1553      1472      0.01566    21.013
+S7  simple  gpt-5    85   3308      2816      0.03319    30.602
+S8  simple  gpt-5    95    504       448      0.00516     4.944
+M1  medium  gpt-5    91   4035      3456      0.04046    31.135
+M2  medium  gpt-5    95   2449      2304      0.02461    43.754
+M3  medium  gpt-5    94   3784      3392      0.03796    35.668
+M4  medium  gpt-5    90   3947      3328      0.03958    33.186
+M5  medium  gpt-5    90   4762      4288      0.04773    63.308
+M6  medium  gpt-5    89   2320      1984      0.02331    21.790
+M7  medium  gpt-5    93   4121      3328      0.04133    42.373
+M8  medium  gpt-5    92   2168      1984      0.02179    41.099
+H1    hard  gpt-5    98   2338      2176      0.02350    35.164
+H2    hard  gpt-5   108   5534      4608      0.05547    53.156
+H3    hard  gpt-5   102   5906      5440      0.05919    86.683
+H4    hard  gpt-5   102   6139      5120      0.06152   108.109
+H5    hard  gpt-5   109   2145      2048      0.02159    26.991
+H6    hard  gpt-5   123   4040      3136      0.04055    77.196
+H7    hard  gpt-5   109   2490      2176      0.02504    28.122
+H8    hard  gpt-5   112   5132      3840      0.05146    92.213
+----------------------------------------------------------------------------------------------------
+ИТОГО режим А: стоимость $0.76525, время 991.4 с, токенов вход 2326 / выход 76234
+
+Пример ответа (S1):
+Because its “validUntil” date (2024-11-30) is in the past. Under MDR/IVDR, notified body certificates are only valid up to the expiry date stated on the certificate; after that they are no longer valid and are shown as “Expired” unless renewed/extended (MDR/IVDR Art. 56(1); MDR Annex XII). In EUDAMED, notified bodies must record and update certificate status, including expiry (MDR Art. 57).
+
+If this is a legacy MDD/AIMDD certificate you believe should still be valid, the legal extension to 2027/ … [ещё 188 символов]

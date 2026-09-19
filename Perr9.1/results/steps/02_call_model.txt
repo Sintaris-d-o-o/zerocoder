@@ -1,0 +1,23 @@
+====================================================================================================
+ШАГ 2. Функция вызова модели: пробные запросы (простой и сложный вопрос)
+====================================================================================================
+--- S1 [simple] Certificate C-102: validUntil = 2024-11-30, status = Expired. Why is it shown as Expired?
+дежурный (gemma4:12b, локально): 'simple' → simple   [20.1 с, 222+2 токенов, $0.00000]
+ответ модели уровня 'simple' (gemma4:12b, ollama):
+The certificate is shown as **Expired** because the current date has surpassed the `validUntil` date of **2024-11-30**.
+
+Under **EU MDR 2017/745**, a certificate remains valid only until its expiration date. Once this date passes, the Notified Body (NB) must issue a new certificate or an extension to maintain compliance. In the context of **EUDAMED** and regulatory tracking:
+
+1.  **Validity Period:** A certificate is legally valid only within the timeframe specified by the Notified Body.
+2.  **Compliance Status:** An expired status indicates that the manufacturer no longer has a current certificate from a Notified Body to place the device on the market or maintain its CE marking.
+3.  **Actio … [ещё 199 символов]
+→ токены: вход 130, выход 202 (из них рассуждения 0); стоимость $0.00000; время 57.0 с
+
+--- H1 [hard] Which MDR classification rule applies to software that calculates insulin doses for a patient, which class results, and why?
+дежурный (gemma4:12b, локально): 'hard' → hard   [18.7 с, 209+2 токенов, $0.00000]
+ответ модели уровня 'hard' (gpt-5, openai):
+- Rule: MDR Annex VIII, Chapter III, Rule 11 (software).
+- Class: Class IIb.
+- Why: The software provides information used to take decisions for therapeutic purposes (insulin dosing). Under Rule 11, such software is class IIa by default, but is up-classified to class IIb when those decisions may cause a serious deterioration of a person’s state of health (e.g., severe hypo-/hyperglycaemia from an incorrect insulin dose). Only if the decisions may cause death or irreversible deterioration would it be class III (Annex VIII, Ch. III, Rule 11, second and third indents).
+→ токены: вход 98, выход 1996 (из них рассуждения 1856); стоимость $0.02008; время 41.2 с
+

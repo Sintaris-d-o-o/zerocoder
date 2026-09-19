@@ -1,0 +1,23 @@
+====================================================================================================
+ШАГ 1. Конфигурация ролей: модели, промпты, тарифы
+====================================================================================================
+Тарифы: USD за 1 млн токенов, тариф Standard. Источник: https://developers.openai.com/api/docs/pricing (дата: 2026-09-19)
+  роль где работает     модель лимит вывода    reasoning  $/1M вход  $/1M выход
+intent       ollama gemma4:12b            5 по умолчанию       0.00         0.0
+simple       ollama gemma4:12b          400 по умолчанию       0.00         0.0
+medium       openai gpt-5-mini            — по умолчанию       0.25         2.0
+  hard       openai      gpt-5            — по умолчанию       1.25        10.0
+ judge       openai      gpt-5         4000          low       1.25        10.0
+
+Системный промпт дежурного (intent):
+You are the intake assistant of a regulatory helpdesk for medical devices (EU MDR/IVDR, ISO 13485, CE certificates, EUDAMED).
+Classify the user's question into exactly one of three tiers:
+- simple: a definition or abbreviation, one field of a certificate record (status, date), a single named authority, one fixed number or deadline. Answerable in 1-3 sentences.
+- medium: a specific requirement or procedure from one regulation or article. Needs regulatory knowledge, one source, a structured answer.
+- hard: reasoning across several provisions: device classification by Annex VIII rules, transition provisions with conditions and evidence, comparison of two regulations, gap analysis of documents, audit preparation.
+Answer with exactly one lower-case word: simple, medium or hard.
+
+Системный промпт отвечающих моделей:
+You are a regulatory assistant for medical devices (EU MDR 2017/745, IVDR 2017/746, ISO 13485/14971, CE certificates, EUDAMED). Answer the question accurately and concisely, citing the relevant articles, annexes or rules where applicable. No preamble.
+
+Ollama: http://localhost:11434, модель gemma4:12b (локально, цена 0)

@@ -1,0 +1,32 @@
+====================================================================================================
+ШАГ 6. Экзаменатор: оценка качества ответов вслепую (1–5)
+====================================================================================================
+id уровень  Б: модель  оценка А  оценка Б                                              комментарий к Б
+S1  simple gemma4:12b         5         4 Core reason is correct but lacks specific MDR article citati
+S2  simple gemma4:12b         5         2 Expands IVDR correctly and cites 2017/746, but misstates the
+S3  simple gemma4:12b         5         3 Identifies BfArM correctly but adds misleading points (e.g.,
+S4  simple gemma4:12b         4         2 Wrong authority name and abbreviation (should be JAZMP: Javn
+S5  simple gemma4:12b         5         2 Basic definition is right, but key citations and details are
+S6  simple gemma4:12b         4         2 Correct that it’s near expiry, but adds misleading MDR/IVDR,
+S7  simple gemma4:12b         5         3 Partially correct definition and content, but cites wrong pr
+S8  simple gemma4:12b         5         1 Incorrect: MDR Article 56(2) sets a maximum validity of 5 ye
+M1  medium gpt-5-mini         4         4 Covers most core Art. 10 duties (QMS, risk/PMS/clinical eval
+M2  medium gpt-5-mini         4         4 Correct operators and article cited, but slightly mislabels 
+M3  medium      gpt-5         5         5 Accurate definition, correct exemptions, correct deadlines, 
+M4  medium gpt-5-mini         5         4 Comprehensive and largely correct with relevant MDR/Annex re
+M5  medium gpt-5-mini         4         3 Captures basic steps but cites wrong Articles, uses wrong au
+M6  medium gpt-5-mini         5         4 Accurate on OJ listing and 1025/2012 mechanism, but omits MD
+M7  medium gpt-5-mini         4         5 Accurate and comprehensive: identifies the three components,
+M8  medium gpt-5-mini         5         3 Cites Article 52 and Annexes IX, X, XI, but omits required c
+H1    hard      gpt-5         5         5 Correct: Rule 11 applies; Class IIb justified because errone
+H2    hard      gpt-5         5         5 Accurate, complete, and correctly cites MDR Art. 120 (as ame
+H3    hard      gpt-5         5         5 Accurate deadlines and cumulative conditions with correct MD
+H4    hard      gpt-5         5         4 Comprehensive and well‑cited, but incorrectly states PSURs a
+H5    hard      gpt-5         4         5 Correctly classifies as IIb under Annex VIII Rule 3 and note
+H6    hard      gpt-5         5         5 Accurate, complete, and cites the correct MDR and ISO 13485 
+H7    hard      gpt-5         4         5 Comprehensive and accurate list of Annex IV requirements wit
+H8    hard      gpt-5         5         5 Comprehensive, correct, and well-cited list for Class IIa st
+----------------------------------------------------------------------------------------------------
+Средняя оценка: режим А 4.67, режим Б 3.75
+По уровням (А / Б): simple: 4.75 / 2.38, medium: 4.50 / 4.00, hard: 4.75 / 4.88
+Стоимость работы экзаменатора (накладные расходы эксперимента, в сравнение А/Б не входит): $0.32444

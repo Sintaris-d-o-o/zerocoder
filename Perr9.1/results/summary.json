@@ -1,0 +1,307 @@
+{
+  "classifier": {
+    "accuracy": 0.9583333333333334,
+    "correct": 23,
+    "total": 24,
+    "per_tier": {
+      "simple": 1.0,
+      "medium": 0.875,
+      "hard": 1.0
+    },
+    "avg_latency_s": 18.110166666666668,
+    "errors": [
+      {
+        "id": "M3",
+        "expected": "medium",
+        "predicted": "hard"
+      }
+    ]
+  },
+  "run_at": "2026-09-19T21:26:43",
+  "n_queries": 24,
+  "models": {
+    "intent": "gemma4:12b",
+    "simple": "gemma4:12b",
+    "medium": "gpt-5-mini",
+    "hard": "gpt-5",
+    "judge": "gpt-5"
+  },
+  "pricing": {
+    "unit": "USD за 1 млн токенов, тариф Standard",
+    "source": "https://developers.openai.com/api/docs/pricing",
+    "retrieved": "2026-09-19",
+    "note": "Локальные модели через Ollama не тарифицируются (0). Для сравнения приведены и другие модели OpenAI.",
+    "models": {
+      "gpt-5": {
+        "input": 1.25,
+        "cached_input": 0.125,
+        "output": 10.0
+      },
+      "gpt-5.1": {
+        "input": 1.25,
+        "cached_input": 0.125,
+        "output": 10.0
+      },
+      "gpt-5.2": {
+        "input": 1.75,
+        "cached_input": 0.175,
+        "output": 14.0
+      },
+      "gpt-5-mini": {
+        "input": 0.25,
+        "cached_input": 0.025,
+        "output": 2.0
+      },
+      "gpt-5-nano": {
+        "input": 0.05,
+        "cached_input": 0.005,
+        "output": 0.4
+      },
+      "gpt-4.1-nano": {
+        "input": 0.1,
+        "cached_input": 0.025,
+        "output": 0.4
+      },
+      "gpt-4o": {
+        "input": 2.5,
+        "cached_input": 1.25,
+        "output": 10.0
+      },
+      "gemma4": {
+        "input": 0,
+        "cached_input": 0,
+        "output": 0
+      }
+    }
+  },
+  "mode_A": {
+    "cost_usd": 0.7652475,
+    "latency_s": 991.429,
+    "tokens_in": 2326,
+    "tokens_out": 76234,
+    "avg_score": 4.666666666666667
+  },
+  "mode_B": {
+    "cost_usd": 0.40541425,
+    "latency_s": 1543.685,
+    "tokens_in": 7512,
+    "tokens_out": 55199,
+    "avg_score": 3.75,
+    "by_model": {
+      "gemma4:12b": {
+        "вопросов": 8,
+        "стоимость": 0.0,
+        "время": 449.161
+      },
+      "gpt-5-mini": {
+        "вопросов": 7,
+        "стоимость": 0.033018,
+        "время": 205.856
+      },
+      "gpt-5": {
+        "вопросов": 9,
+        "стоимость": 0.37239625000000004,
+        "время": 454.024
+      }
+    },
+    "intent_latency_s": 434.644,
+    "routing_errors": [
+      {
+        "id": "M3",
+        "expected": "medium",
+        "predicted": "hard"
+      }
+    ]
+  },
+  "saving_pct": 47.02181320422478,
+  "judge_cost_usd": 0.32444125,
+  "scores": {
+    "S1": {
+      "A": 5,
+      "B": 4,
+      "reason_A": "Correctly explains expiry, cites MDR Annex XII and Art. 56/57, and notes transitional Article 120/2023/607 conditions for legacy certificates.",
+      "reason_B": "Core reason is correct but lacks specific MDR article citations and overstates NB ‘must’ extend/renew."
+    },
+    "S2": {
+      "A": 5,
+      "B": 2,
+      "reason_A": "Correct expansion and cites Regulation (EU) 2017/746 accurately.",
+      "reason_B": "Expands IVDR correctly and cites 2017/746, but misstates the replaced legislation (it replaced Directive 98/79/EC) and omits “Medical Devices” in the title."
+    },
+    "S3": {
+      "A": 5,
+      "B": 3,
+      "reason_A": "Accurate and complete: correctly identifies BfArM, the PEI exceptions, and Länder market surveillance with proper MPDG citations.",
+      "reason_B": "Identifies BfArM correctly but adds misleading points (e.g., notified body oversight is by ZLG; market surveillance mainly by Länder) and lacks legal citations."
+    },
+    "S4": {
+      "A": 4,
+      "B": 2,
+      "reason_A": "Correct authority named; lacks specific MDR/IVDR article citations designating competent authorities.",
+      "reason_B": "Wrong authority name and abbreviation (should be JAZMP: Javna agencija RS za zdravila in medicinske pripomočke), despite correctly describing its role."
+    },
+    "S5": {
+      "A": 5,
+      "B": 2,
+      "reason_A": "Accurate, complete definition with correct roles and legal bases (MDR/IVDR articles and annexes), applicability, and identification details.",
+      "reason_B": "Basic definition is right, but key citations and details are wrong (Article 11 mis-cited; IIa called high-risk; NB scope under MDR/IVDR not accurately referenced; NANDO/OJEU listing misstated; ISO standards overstated)."
+    },
+    "S6": {
+      "A": 4,
+      "B": 2,
+      "reason_A": "Correct days-left reasoning; cites MDR basis for certificate validity, though the 90‑day window is a business rule and Article 56(2) citation is not pinpoint.",
+      "reason_B": "Correct that it’s near expiry, but adds misleading MDR/IVDR, ISO 13485, and EUDAMED claims not tied to an ‘expiring soon’ status or specific provisions."
+    },
+    "S7": {
+      "A": 5,
+      "B": 3,
+      "reason_A": "Accurate definition with correct MDR/IVDR articles, Annex IV content, CE-mark linkage, language/retention rules, and valid exceptions; no material omissions.",
+      "reason_B": "Partially correct definition and content, but cites wrong provisions (should reference MDR Art. 19/Annex IV and IVDR Art. 17/Annex IV), and the NB applicability note is incomplete."
+    },
+    "S8": {
+      "A": 5,
+      "B": 1,
+      "reason_A": "Correct: maximum 5 years with proper citation to MDR Article 56(1); renewals per 56(2) noted.",
+      "reason_B": "Incorrect: MDR Article 56(2) sets a maximum validity of 5 years for NB certificates; the answer claims no fixed expiration."
+    },
+    "M1": {
+      "A": 4,
+      "B": 4,
+      "reason_A": "Comprehensive and correctly cited, but omits the explicit obligation that devices be accompanied by the information per Annex I Section 23 (Article 10(11)).",
+      "reason_B": "Covers most core Art. 10 duties (QMS, risk/PMS/clinical eval, tech docs, CA, CE/DoC, PRRC, UDI/registration, records, labeling, cooperation) but omits key items like sufficient financial coverage and, where applicable, appointment of an authorised representative and some detailed QMS elements."
+    },
+    "M2": {
+      "A": 4,
+      "B": 4,
+      "reason_A": "Correct actors and articles cited; slight overgeneralization on system/procedure pack producers (registration depends on when they are deemed manufacturers under Art. 22).",
+      "reason_B": "Correct operators and article cited, but slightly mislabels Article 31’s title and details."
+    },
+    "M3": {
+      "A": 5,
+      "B": 5,
+      "reason_A": "Accurate and complete: correct scope, definitions, exceptions, deadlines, and relevant MDR citations.",
+      "reason_B": "Accurate definition, correct exemptions, correct deadlines, and proper citations to MDR Articles 2(64), 87(1)-(2),(5), 88, and 92."
+    },
+    "M4": {
+      "A": 5,
+      "B": 4,
+      "reason_A": "Accurately captures Annex III PMS plan content with correct MDR citations and key elements (data sources, methods, PMCF, updates, reporting links).",
+      "reason_B": "Comprehensive and largely correct with relevant MDR/Annex references, but misses explicit citation of Article 84 and the specific Annex III minimum elements list."
+    },
+    "M5": {
+      "A": 4,
+      "B": 3,
+      "reason_A": "Substantively accurate and complete with correct MDR/Annex VII/IR 2017/2185 basis, but some article references (e.g., assessment/notification) are slightly off or vague.",
+      "reason_B": "Captures basic steps but cites wrong Articles, uses wrong authority term (notifying authority), and omits the mandatory joint assessment procedure under Articles 39–43 MDR."
+    },
+    "M6": {
+      "A": 5,
+      "B": 4,
+      "reason_A": "Accurate and complete: cites MDR/IVDR Art. 8(1) and Reg. 1025/2012 Art. 10(6) and correctly explains OJEU C-series Communications and update mechanism.",
+      "reason_B": "Accurate on OJ listing and 1025/2012 mechanism, but omits MDR Art. 8 and IVDR Art. 9 as the specific legal bases for medical devices."
+    },
+    "M7": {
+      "A": 4,
+      "B": 5,
+      "reason_A": "Comprehensive and accurate with correct legal bases (Art. 56, Annex XIII, CS, PMS/PMPF), but has minor imprecision in Annex II subsection citations/details.",
+      "reason_B": "Accurate and comprehensive: identifies the three components, PEP/PER lifecycle, links to GSPRs, PMPF, and cites Art. 56 and Annex XIII/Annex I correctly with relevant content details."
+    },
+    "M8": {
+      "A": 5,
+      "B": 3,
+      "reason_A": "Correct and complete list per Article 52(4) with appropriate annex references and class IIa specifics.",
+      "reason_B": "Cites Article 52 and Annexes IX, X, XI, but omits required combinations (Annex X must be coupled with Annex XI Part A or B; Annex XI Part A requires TD sampling per Annex IX Ch. II) and the Part A/B distinctions."
+    },
+    "H1": {
+      "A": 5,
+      "B": 5,
+      "reason_A": "Correctly applies MDR Rule 11, identifies Class IIb with accurate rationale and supporting references (MDR Annex VIII, MDCG 2019-11), plus correct note on software driving a pump.",
+      "reason_B": "Correct: Rule 11 applies; Class IIb justified because erroneous dosing can cause serious deterioration, with proper citation and rationale."
+    },
+    "H2": {
+      "A": 5,
+      "B": 5,
+      "reason_A": "Accurate, well-cited summary of Reg. 2023/607 transitional extension, conditions, deadlines, and required evidence for a May 2024 expiry.",
+      "reason_B": "Accurate, complete, and correctly cites MDR Art. 120 (as amended by 2023/607), including deadlines, conditions, safety-net provisions, and evidence."
+    },
+    "H3": {
+      "A": 5,
+      "B": 5,
+      "reason_A": "Accurate deadlines and conditions with correct MDR Art. 120 citations, including QMS/application/agreement dates and sell‑off deletion.",
+      "reason_B": "Accurate deadlines and cumulative conditions with correct MDR articles; includes sell‑off removal and legacy certificate validity provisions."
+    },
+    "H4": {
+      "A": 5,
+      "B": 4,
+      "reason_A": "Accurate, well‑structured comparison with correct article citations and clear noting of substantive differences.",
+      "reason_B": "Comprehensive and well‑cited, but incorrectly states PSURs are mandatory for all classes (not for MDR class I and IVDR class A)."
+    },
+    "H5": {
+      "A": 4,
+      "B": 5,
+      "reason_A": "Correct class and rule cited; minor omission of full list of IIa exceptions (e.g., gas or radiation exchange).",
+      "reason_B": "Correctly classifies as IIb under Annex VIII Rule 3 and notes the IIa exception for filtration/centrifugation/gas/heat."
+    },
+    "H6": {
+      "A": 5,
+      "B": 5,
+      "reason_A": "Accurate, complete, and cites correct MDR and ISO 13485 provisions; correctly explains harmonisation, presumption of conformity, impact on certificates and DoC, and required transition actions.",
+      "reason_B": "Accurate, complete, and cites the correct MDR and ISO 13485 provisions; clear actions and correct handling of harmonisation and DoC updates."
+    },
+    "H7": {
+      "A": 4,
+      "B": 5,
+      "reason_A": "Comprehensive and cites correct Annex IV points; minor inaccuracy by listing intended purpose, which Annex IV does not require on the DoC.",
+      "reason_B": "Comprehensive and accurate list of Annex IV requirements with correct citations; notes CE mark not required on DoC."
+    },
+    "H8": {
+      "A": 5,
+      "B": 5,
+      "reason_A": "Comprehensive, accurate, and well-cited to MDR (Art. 52(7), Annex I/II/III/IX/XI) and relevant standards; correctly identifies major gaps from missing sterilization validation.",
+      "reason_B": "Comprehensive, correct, and well-cited list for Class IIa sterile devices; correctly identifies MDR/ISO requirements and likely gaps without a sterilization validation protocol."
+    }
+  },
+  "tokenization": [
+    {
+      "язык": "EN",
+      "фраза": "The certificate expires in 30 days.",
+      "символов": 35,
+      "токенов o200k (gpt-5)": 8,
+      "токенов cl100k (gpt-3.5/4)": 8,
+      "токенов gemma4:12b": 10
+    },
+    {
+      "язык": "RU",
+      "фраза": "Сертификат истекает через 30 дней.",
+      "символов": 34,
+      "токенов o200k (gpt-5)": 12,
+      "токенов cl100k (gpt-3.5/4)": 18,
+      "токенов gemma4:12b": 12
+    },
+    {
+      "язык": "DE",
+      "фраза": "Das Zertifikat läuft in 30 Tagen ab.",
+      "символов": 36,
+      "токенов o200k (gpt-5)": 10,
+      "токенов cl100k (gpt-3.5/4)": 14,
+      "токенов gemma4:12b": 12
+    },
+    {
+      "язык": "SL",
+      "фраза": "Certifikat poteče čez 30 dni.",
+      "символов": 29,
+      "токенов o200k (gpt-5)": 10,
+      "токенов cl100k (gpt-3.5/4)": 12,
+      "токенов gemma4:12b": 12
+    },
+    {
+      "язык": "RU translit",
+      "фраза": "Sertifikat istekaet cherez 30 dney.",
+      "символов": 35,
+      "токенов o200k (gpt-5)": 13,
+      "токенов cl100k (gpt-3.5/4)": 14,
+      "токенов gemma4:12b": 15
+    }
+  ],
+  "verdict": "Мультимодельность дешевле на 47% при среднем качестве 3.75 против 4.67; время больше на 56% (локальная модель работает на CPU ноутбука)."
+}

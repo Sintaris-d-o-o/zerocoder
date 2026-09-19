@@ -1,0 +1,492 @@
+[
+  {
+    "model": "gemma4:e2b",
+    "accuracy": 0.5833333333333334,
+    "avg_latency_s": 5.4387083333333335,
+    "errors": [
+      {
+        "id": "S3",
+        "expected": "simple",
+        "predicted": "medium",
+        "raw": "medium",
+        "latency_s": 4.774,
+        "tokens_in": 196
+      },
+      {
+        "id": "S4",
+        "expected": "simple",
+        "predicted": "medium",
+        "raw": "medium",
+        "latency_s": 5.459,
+        "tokens_in": 193
+      },
+      {
+        "id": "S8",
+        "expected": "simple",
+        "predicted": "medium",
+        "raw": "medium",
+        "latency_s": 5.262,
+        "tokens_in": 202
+      },
+      {
+        "id": "H1",
+        "expected": "hard",
+        "predicted": "medium",
+        "raw": "medium",
+        "latency_s": 4.94,
+        "tokens_in": 205
+      },
+      {
+        "id": "H2",
+        "expected": "hard",
+        "predicted": "medium",
+        "raw": "medium",
+        "latency_s": 4.767,
+        "tokens_in": 221
+      },
+      {
+        "id": "H3",
+        "expected": "hard",
+        "predicted": "medium",
+        "raw": "medium",
+        "latency_s": 4.874,
+        "tokens_in": 213
+      },
+      {
+        "id": "H4",
+        "expected": "hard",
+        "predicted": "medium",
+        "raw": "medium",
+        "latency_s": 4.88,
+        "tokens_in": 217
+      },
+      {
+        "id": "H5",
+        "expected": "hard",
+        "predicted": "medium",
+        "raw": "medium",
+        "latency_s": 4.954,
+        "tokens_in": 217
+      },
+      {
+        "id": "H7",
+        "expected": "hard",
+        "predicted": "medium",
+        "raw": "medium",
+        "latency_s": 4.872,
+        "tokens_in": 215
+      },
+      {
+        "id": "H8",
+        "expected": "hard",
+        "predicted": "medium",
+        "raw": "medium",
+        "latency_s": 5.473,
+        "tokens_in": 219
+      }
+    ],
+    "rows": [
+      {
+        "id": "S1",
+        "expected": "simple",
+        "predicted": "simple",
+        "raw": "simple",
+        "latency_s": 12.366,
+        "tokens_in": 218
+      },
+      {
+        "id": "S2",
+        "expected": "simple",
+        "predicted": "simple",
+        "raw": "simple",
+        "latency_s": 4.618,
+        "tokens_in": 192
+      },
+      {
+        "id": "S3",
+        "expected": "simple",
+        "predicted": "medium",
+        "raw": "medium",
+        "latency_s": 4.774,
+        "tokens_in": 196
+      },
+      {
+        "id": "S4",
+        "expected": "simple",
+        "predicted": "medium",
+        "raw": "medium",
+        "latency_s": 5.459,
+        "tokens_in": 193
+      },
+      {
+        "id": "S5",
+        "expected": "simple",
+        "predicted": "simple",
+        "raw": "simple",
+        "latency_s": 4.907,
+        "tokens_in": 189
+      },
+      {
+        "id": "S6",
+        "expected": "simple",
+        "predicted": "simple",
+        "raw": "simple",
+        "latency_s": 5.315,
+        "tokens_in": 214
+      },
+      {
+        "id": "S7",
+        "expected": "simple",
+        "predicted": "simple",
+        "raw": "simple",
+        "latency_s": 4.946,
+        "tokens_in": 191
+      },
+      {
+        "id": "S8",
+        "expected": "simple",
+        "predicted": "medium",
+        "raw": "medium",
+        "latency_s": 5.262,
+        "tokens_in": 202
+      },
+      {
+        "id": "M1",
+        "expected": "medium",
+        "predicted": "medium",
+        "raw": "medium",
+        "latency_s": 6.029,
+        "tokens_in": 199
+      },
+      {
+        "id": "M2",
+        "expected": "medium",
+        "predicted": "medium",
+        "raw": "medium",
+        "latency_s": 5.3,
+        "tokens_in": 202
+      },
+      {
+        "id": "M3",
+        "expected": "medium",
+        "predicted": "medium",
+        "raw": "medium",
+        "latency_s": 5.174,
+        "tokens_in": 201
+      },
+      {
+        "id": "M4",
+        "expected": "medium",
+        "predicted": "medium",
+        "raw": "medium",
+        "latency_s": 5.137,
+        "tokens_in": 198
+      },
+      {
+        "id": "M5",
+        "expected": "medium",
+        "predicted": "medium",
+        "raw": "medium",
+        "latency_s": 5.051,
+        "tokens_in": 196
+      },
+      {
+        "id": "M6",
+        "expected": "medium",
+        "predicted": "medium",
+        "raw": "medium",
+        "latency_s": 5.503,
+        "tokens_in": 196
+      },
+      {
+        "id": "M7",
+        "expected": "medium",
+        "predicted": "medium",
+        "raw": "medium",
+        "latency_s": 5.615,
+        "tokens_in": 200
+      },
+      {
+        "id": "M8",
+        "expected": "medium",
+        "predicted": "medium",
+        "raw": "medium",
+        "latency_s": 5.223,
+        "tokens_in": 199
+      },
+      {
+        "id": "H1",
+        "expected": "hard",
+        "predicted": "medium",
+        "raw": "medium",
+        "latency_s": 4.94,
+        "tokens_in": 205
+      },
+      {
+        "id": "H2",
+        "expected": "hard",
+        "predicted": "medium",
+        "raw": "medium",
+        "latency_s": 4.767,
+        "tokens_in": 221
+      },
+      {
+        "id": "H3",
+        "expected": "hard",
+        "predicted": "medium",
+        "raw": "medium",
+        "latency_s": 4.874,
+        "tokens_in": 213
+      },
+      {
+        "id": "H4",
+        "expected": "hard",
+        "predicted": "medium",
+        "raw": "medium",
+        "latency_s": 4.88,
+        "tokens_in": 217
+      },
+      {
+        "id": "H5",
+        "expected": "hard",
+        "predicted": "medium",
+        "raw": "medium",
+        "latency_s": 4.954,
+        "tokens_in": 217
+      },
+      {
+        "id": "H6",
+        "expected": "hard",
+        "predicted": "hard",
+        "raw": "hard",
+        "latency_s": 5.09,
+        "tokens_in": 235
+      },
+      {
+        "id": "H7",
+        "expected": "hard",
+        "predicted": "medium",
+        "raw": "medium",
+        "latency_s": 4.872,
+        "tokens_in": 215
+      },
+      {
+        "id": "H8",
+        "expected": "hard",
+        "predicted": "medium",
+        "raw": "medium",
+        "latency_s": 5.473,
+        "tokens_in": 219
+      }
+    ]
+  },
+  {
+    "model": "gemma4:12b",
+    "accuracy": 0.9583333333333334,
+    "avg_latency_s": 18.110166666666668,
+    "errors": [
+      {
+        "id": "M3",
+        "expected": "medium",
+        "predicted": "hard",
+        "raw": "hard",
+        "latency_s": 18.653,
+        "tokens_in": 205
+      }
+    ],
+    "rows": [
+      {
+        "id": "S1",
+        "expected": "simple",
+        "predicted": "simple",
+        "raw": "simple",
+        "latency_s": 20.119,
+        "tokens_in": 222
+      },
+      {
+        "id": "S2",
+        "expected": "simple",
+        "predicted": "simple",
+        "raw": "simple",
+        "latency_s": 17.241,
+        "tokens_in": 196
+      },
+      {
+        "id": "S3",
+        "expected": "simple",
+        "predicted": "simple",
+        "raw": "simple",
+        "latency_s": 16.714,
+        "tokens_in": 200
+      },
+      {
+        "id": "S4",
+        "expected": "simple",
+        "predicted": "simple",
+        "raw": "simple",
+        "latency_s": 16.512,
+        "tokens_in": 197
+      },
+      {
+        "id": "S5",
+        "expected": "simple",
+        "predicted": "simple",
+        "raw": "simple",
+        "latency_s": 16.838,
+        "tokens_in": 193
+      },
+      {
+        "id": "S6",
+        "expected": "simple",
+        "predicted": "simple",
+        "raw": "simple",
+        "latency_s": 19.738,
+        "tokens_in": 218
+      },
+      {
+        "id": "S7",
+        "expected": "simple",
+        "predicted": "simple",
+        "raw": "simple",
+        "latency_s": 16.457,
+        "tokens_in": 195
+      },
+      {
+        "id": "S8",
+        "expected": "simple",
+        "predicted": "simple",
+        "raw": "simple",
+        "latency_s": 17.814,
+        "tokens_in": 206
+      },
+      {
+        "id": "M1",
+        "expected": "medium",
+        "predicted": "medium",
+        "raw": "medium",
+        "latency_s": 17.347,
+        "tokens_in": 203
+      },
+      {
+        "id": "M2",
+        "expected": "medium",
+        "predicted": "medium",
+        "raw": "medium",
+        "latency_s": 17.304,
+        "tokens_in": 206
+      },
+      {
+        "id": "M3",
+        "expected": "medium",
+        "predicted": "hard",
+        "raw": "hard",
+        "latency_s": 18.653,
+        "tokens_in": 205
+      },
+      {
+        "id": "M4",
+        "expected": "medium",
+        "predicted": "medium",
+        "raw": "medium",
+        "latency_s": 16.828,
+        "tokens_in": 202
+      },
+      {
+        "id": "M5",
+        "expected": "medium",
+        "predicted": "medium",
+        "raw": "medium",
+        "latency_s": 17.749,
+        "tokens_in": 200
+      },
+      {
+        "id": "M6",
+        "expected": "medium",
+        "predicted": "medium",
+        "raw": "medium",
+        "latency_s": 19.117,
+        "tokens_in": 200
+      },
+      {
+        "id": "M7",
+        "expected": "medium",
+        "predicted": "medium",
+        "raw": "medium",
+        "latency_s": 18.697,
+        "tokens_in": 204
+      },
+      {
+        "id": "M8",
+        "expected": "medium",
+        "predicted": "medium",
+        "raw": "medium",
+        "latency_s": 19.323,
+        "tokens_in": 203
+      },
+      {
+        "id": "H1",
+        "expected": "hard",
+        "predicted": "hard",
+        "raw": "hard",
+        "latency_s": 18.692,
+        "tokens_in": 209
+      },
+      {
+        "id": "H2",
+        "expected": "hard",
+        "predicted": "hard",
+        "raw": "hard",
+        "latency_s": 18.643,
+        "tokens_in": 225
+      },
+      {
+        "id": "H3",
+        "expected": "hard",
+        "predicted": "hard",
+        "raw": "hard",
+        "latency_s": 18.851,
+        "tokens_in": 217
+      },
+      {
+        "id": "H4",
+        "expected": "hard",
+        "predicted": "hard",
+        "raw": "hard",
+        "latency_s": 17.951,
+        "tokens_in": 221
+      },
+      {
+        "id": "H5",
+        "expected": "hard",
+        "predicted": "hard",
+        "raw": "hard",
+        "latency_s": 18.019,
+        "tokens_in": 221
+      },
+      {
+        "id": "H6",
+        "expected": "hard",
+        "predicted": "hard",
+        "raw": "hard",
+        "latency_s": 19.032,
+        "tokens_in": 239
+      },
+      {
+        "id": "H7",
+        "expected": "hard",
+        "predicted": "hard",
+        "raw": "hard",
+        "latency_s": 17.613,
+        "tokens_in": 219
+      },
+      {
+        "id": "H8",
+        "expected": "hard",
+        "predicted": "hard",
+        "raw": "hard",
+        "latency_s": 19.392,
+        "tokens_in": 223
+      }
+    ]
+  }
+]
