@@ -1,0 +1,149 @@
+{
+  "models": [
+    {
+      "name": "Gemma 4 E2B (certtaris, normassist:v1)",
+      "params_b": 5.1,
+      "active_b": 2.0,
+      "note": "«E2B» = 2 млрд активных параметров, физически 5,1 млрд; замер: 7,7–7,8 ГБ в памяти при окне 16 384 токена",
+      "weights_gb": {
+        "FP32": 19.0,
+        "FP16/BF16": 9.5,
+        "INT8": 4.75,
+        "INT4": 2.37
+      },
+      "real_file_gb": 7.2,
+      "measured_ram_gb": 7.75,
+      "inference_gb_int4": 2.85,
+      "training_gb_fp16": 47.5
+    },
+    {
+      "name": "Gemma 4 E4B",
+      "params_b": 8.0,
+      "active_b": 4.0,
+      "note": "второй вариант для certtaris; замер: 10,0 ГБ в памяти",
+      "weights_gb": {
+        "FP32": 29.8,
+        "FP16/BF16": 14.9,
+        "INT8": 7.45,
+        "INT4": 3.73
+      },
+      "real_file_gb": 9.6,
+      "measured_ram_gb": 10.0,
+      "inference_gb_int4": 4.47,
+      "training_gb_fp16": 74.51
+    },
+    {
+      "name": "Gemma 4 12B",
+      "params_b": 11.9,
+      "active_b": 11.9,
+      "note": "дежурный мультимодельного агента из задания 9.1",
+      "weights_gb": {
+        "FP32": 44.33,
+        "FP16/BF16": 22.17,
+        "INT8": 11.08,
+        "INT4": 5.54
+      },
+      "real_file_gb": 7.6,
+      "measured_ram_gb": null,
+      "inference_gb_int4": 6.65,
+      "training_gb_fp16": 110.83
+    },
+    {
+      "name": "MiniLM-L12-v2 (эмбеддинги certtaris)",
+      "params_b": 0.118,
+      "active_b": null,
+      "note": "384 измерения; энкодер — превращает фрагмент в вектор и ничего не генерирует, поэтому кэш контекста ему не нужен",
+      "weights_gb": {
+        "FP32": 0.44,
+        "FP16/BF16": 0.22,
+        "INT8": 0.11,
+        "INT4": 0.05
+      },
+      "real_file_gb": null,
+      "measured_ram_gb": null,
+      "inference_gb_int4": 0.07,
+      "training_gb_fp16": 1.1
+    },
+    {
+      "name": "GPT-3 175B",
+      "params_b": 175.0,
+      "active_b": 175.0,
+      "note": "пример из текста задания, для масштаба",
+      "weights_gb": {
+        "FP32": 651.93,
+        "FP16/BF16": 325.96,
+        "INT8": 162.98,
+        "INT4": 81.49
+      },
+      "real_file_gb": null,
+      "measured_ram_gb": null,
+      "inference_gb_int4": 97.79,
+      "training_gb_fp16": 1629.81
+    }
+  ],
+  "contexts": {
+    "короткий вопрос (500 токенов)": 500,
+    "рабочее окно certtaris (16 384)": 16384,
+    "длинный документ (32 000)": 32000,
+    "максимальное окно (262 144)": 262144
+  },
+  "train_multiplier": 5.0,
+  "kv_cache_gb": {
+    "Gemma 4 E2B (certtaris, normassist:v1)": {
+      "короткий вопрос (500 токенов)": 0.029,
+      "рабочее окно certtaris (16 384)": 0.938,
+      "длинный документ (32 000)": 1.831,
+      "максимальное окно (262 144)": 15.0
+    },
+    "Gemma 4 E4B": {
+      "короткий вопрос (500 токенов)": 0.067,
+      "рабочее окно certtaris (16 384)": 2.188,
+      "длинный документ (32 000)": 4.272,
+      "максимальное окно (262 144)": 35.0
+    },
+    "Gemma 4 12B": {
+      "короткий вопрос (500 токенов)": 0.183,
+      "рабочее окно certtaris (16 384)": 6.0,
+      "длинный документ (32 000)": 11.719,
+      "максимальное окно (262 144)": 96.0
+    },
+    "GPT-3 175B": {
+      "короткий вопрос (500 токенов)": 2.197,
+      "рабочее окно certtaris (16 384)": 72.0,
+      "длинный документ (32 000)": 140.625,
+      "максимальное окно (262 144)": 1152.0
+    }
+  },
+  "speed": {
+    "Radeon 890M (встроенная, замер)": {
+      "bandwidth_gbs": 38.0,
+      "effective_gbs": 38.0,
+      "tokens_per_s": 41,
+      "speedup": 1.0
+    },
+    "RTX 4060 Ti 16 ГБ": {
+      "bandwidth_gbs": 288.0,
+      "effective_gbs": 144.0,
+      "tokens_per_s": 155,
+      "speedup": 3.8
+    },
+    "RTX 3060 12 ГБ": {
+      "bandwidth_gbs": 360.0,
+      "effective_gbs": 180.0,
+      "tokens_per_s": 193,
+      "speedup": 4.7
+    },
+    "RTX 3090 24 ГБ": {
+      "bandwidth_gbs": 936.0,
+      "effective_gbs": 468.0,
+      "tokens_per_s": 503,
+      "speedup": 12.3
+    },
+    "RTX 4090 24 ГБ": {
+      "bandwidth_gbs": 1008.0,
+      "effective_gbs": 504.0,
+      "tokens_per_s": 541,
+      "speedup": 13.3
+    }
+  }
+}
