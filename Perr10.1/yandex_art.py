@@ -1,19 +1,31 @@
-"""Генерация изображений через Yandex ART API (задание 10.1).
+"""Генерация изображений через Yandex AI Studio (задание 10.1).
 
-Генерация асинхронная, как описано в уроке:
-    1. POST .../imageGenerationAsync  → получаем id операции;
-    2. GET  .../operations/{id}       → опрашиваем, пока не появится done=true;
-    3. response.image                 → base64, декодируем и сохраняем в файл.
+**Важно: API изменился по сравнению с уроком.** В уроке используется асинхронный вызов
+`foundationModels/v1/imageGenerationAsync` с моделью `yandex-art`. На сентябрь 2026 этот путь
+отвечает отказом «Access to model art://yandex-art/latest denied» при полностью правильных
+настройках: у каталога есть роли, у ключа — нужная область действия, оплата активна, а
+текстовые модели тем же ключом работают. Модель `yandex-art` в каталоге моделей AI Studio
+больше не значится.
+
+Актуальный путь — **OpenAI-совместимый API** Yandex AI Studio: тот же клиент `openai`, но с
+другим адресом сервера. Генерация синхронная, отдельный опрос операции не нужен.
+Доступные модели генерации изображений видны в консоли AI Studio, раздел «Модели».
+
+Старый способ из урока сохранён и вызывается ключом `--legacy`, чтобы можно было показать
+разницу и проверить, не вернулась ли модель.
 
 Ключи только из .env (в корне репозитория или рядом со скриптом):
-    YANDEX_API_KEY  — API-ключ сервисного аккаунта
-    YANDEX_FOLDER_ID — идентификатор каталога в Yandex Cloud
+    YANDEX_API_KEY     — API-ключ сервисного аккаунта
+    YANDEX_FOLDER_ID   — идентификатор каталога в Yandex Cloud
+    YANDEX_ART_API_KEY — необязательный отдельный ключ для картинок
+    YANDEX_ART_MODEL   — необязательная замена модели
 
 Запуск:
     python yandex_art.py                       # все промпты проекта
     python yandex_art.py --prompt "текст"      # свой промпт
     python yandex_art.py --list                # показать заготовленные промпты, ничего не генерируя
-    python yandex_art.py --dry-run             # проверить сборку запроса без обращения к API
+    python yandex_art.py --check               # проверить доступ, ничего не генерируя
+    python yandex_art.py --dry-run             # показать запрос без обращения к API
 """
 from __future__ import annotations
 
@@ -40,8 +52,21 @@ load_dotenv(HERE / ".env")          # локальная копия рядом �
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
+# --- актуальный путь: OpenAI-совместимый API Yandex AI Studio ---
+AI_STUDIO_BASE_URL = "https://ai.api.cloud.yandex.net/v1"
+# Задание требует именно YandexART. В каталоге моделей AI Studio она называется
+# yandex-art-2.0 (старое имя yandex-art из урока больше не обслуживается).
+# Альтернатива из того же раздела: aliceai-image-art-3.0/latest.
+DEFAULT_MODEL = "yandex-art-2.0/latest"          # проверено рабочим 20.09.2026
+DEFAULT_SIZE = "1024x1024"
+PROMPT_LIMIT = 500   # предел длины промпта у YandexART 2.0, указан в карточке модели
+
+# --- путь из урока (сейчас отвечает отказом, оставлен для сравнения) ---
 GENERATE_URL = "https://llm.api.cloud.yandex.net/foundationModels/v1/imageGenerationAsync"
-OPERATION_URL = "https://llm.api.cloud.yandex.net:443/operations/{operation_id}"
+# Статус операции спрашивают у отдельной службы операций, а не у той, что приняла запрос
+# (в уроке указан адрес llm.api..., документация называет operation.api...).
+OPERATION_URL = "https://operation.api.cloud.yandex.net:443/operations/{operation_id}"
+LEGACY_MODEL = "yandex-art/latest"
 
 POLL_INTERVAL_S = 5      # урок советует опрашивать раз в несколько секунд, а не десять раз в секунду
 POLL_TIMEOUT_S = 300     # потолок ожидания: генерация обычно занимает 10–40 секунд
@@ -68,9 +93,33 @@ class GenerationResult:
 
 # --------------------------------------------------------------------------- запрос
 
+def make_client(api_key: Optional[str] = None, folder_id: Optional[str] = None):
+    """Клиент OpenAI, направленный на сервер Yandex AI Studio.
+
+    Каталог передаётся параметром `project` — так этот сервер понимает, чьи квоты тратить.
+    """
+    api_key = api_key or art_api_key()
+    folder_id = folder_id or folder()
+    if not api_key:
+        raise YandexArtError("Не задан YANDEX_API_KEY. Положите его в .env — см. .env.example")
+    if not folder_id:
+        raise YandexArtError("Не задан YANDEX_FOLDER_ID. Положите его в .env — см. .env.example")
+    import openai
+    return openai.OpenAI(api_key=api_key, base_url=AI_STUDIO_BASE_URL, project=folder_id,
+                         timeout=180.0, max_retries=1)
+
+
+def folder() -> str:
+    return os.getenv("YANDEX_FOLDER_ID", "") or os.getenv("YANDEX_CLOUD_ID", "")
+
+
+def model_name() -> str:
+    return os.getenv("YANDEX_ART_MODEL", "") or DEFAULT_MODEL
+
+
 def build_payload(prompt: str, seed: Optional[int], folder_id: str,
                   width_ratio: str = "1", height_ratio: str = "1") -> dict:
-    """Тело запроса ровно той структуры, что разобрана в уроке."""
+    """Тело запроса ровно той структуры, что разобрана в уроке (старый путь)."""
     return {
         "modelUri": f"art://{folder_id}/yandex-art/latest",
         "generationOptions": {
@@ -170,42 +219,45 @@ def check_access(post_json: Callable = _post_json) -> int:
         print("\nДобавьте недостающее в .env — см. .env.example")
         return 2
 
+    print(f"  модель:            {model_name()}")
     results = {}
-    for label, key, url, payload in (
-        ("текстовая модель", text_key,
-         "https://llm.api.cloud.yandex.net/foundationModels/v1/completion",
-         {"modelUri": f"gpt://{folder}/yandexgpt-lite",
-          "completionOptions": {"maxTokens": 1, "temperature": 0},
-          "messages": [{"role": "user", "text": "."}]}),
-        ("генерация картинок", art_key, GENERATE_URL,
-         build_payload("простой синий круг", None, folder)),
-    ):
-        try:
-            post_json(url, payload, build_headers(key))
-            results[label] = True
-            print(f"  {label}: доступна")
-        except YandexArtError as exc:
-            results[label] = False
-            print(f"  {label}: НЕТ — {str(exc).split('. Ответ сервера')[0]}")
+
+    # 1) текстовая модель — показывает, что с оплатой и ключом всё хорошо
+    try:
+        post_json("https://llm.api.cloud.yandex.net/foundationModels/v1/completion",
+                  {"modelUri": f"gpt://{folder}/yandexgpt-lite",
+                   "completionOptions": {"maxTokens": 1, "temperature": 0},
+                   "messages": [{"role": "user", "text": "."}]},
+                  build_headers(text_key))
+        results["текст"] = True
+        print("  текстовая модель:  доступна")
+    except YandexArtError as exc:
+        results["текст"] = False
+        print(f"  текстовая модель:  НЕТ — {str(exc).split('. Ответ сервера')[0]}")
+
+    # 2) картинки — актуальным способом
+    try:
+        generate_image("простой синий круг на белом фоне")
+        results["картинки"] = True
+        print("  генерация картинок: доступна")
+    except YandexArtError as exc:
+        results["картинки"] = False
+        print(f"  генерация картинок: НЕТ — {str(exc).split('. Ответ сервиса')[0]}")
 
     print()
-    if results.get("генерация картинок"):
+    if results.get("картинки"):
         print("Всё готово: можно запускать генерацию.")
         return 0
-    if results.get("текстовая модель"):
-        print("Оплата и роли в порядке — текстовая модель отвечает тем же ключом.")
-        print("Закрыта только генерация картинок. Самая частая причина — не роль, а")
-        print("«область действия» самого API-ключа: она задаётся при создании ключа")
-        print("и не меняется ролями аккаунта.")
-        print()
-        print("Что проверить в консоли Yandex Cloud:")
-        print(f"  каталог {folder} → «Сервисные аккаунты» → нужный аккаунт → раздел «API-ключи»")
-        print("  → колонка «Область действия». Если там yc.ai.languageModels.execute —")
-        print("  создайте новый ключ с областью yc.ai.imageGeneration.execute.")
-        print()
-        print("Если область выбирается только одна, держите два ключа:")
-        print("  YANDEX_API_KEY     — для текста")
-        print("  YANDEX_ART_API_KEY — для картинок (скрипт возьмёт его автоматически)")
+    if results.get("текст"):
+        print("Оплата и ключ в порядке — текстовая модель отвечает.")
+        print("Закрыта только генерация картинок. Что проверить:")
+        print(f"  1. Модель «{model_name()}» должна быть в каталоге моделей AI Studio:")
+        print(f"     https://aistudio.yandex.ru/platform/folders/{folder}/models")
+        print("     Названия моделей меняются — если этой нет, возьмите любую из раздела")
+        print("     «Изображения» и укажите её в YANDEX_ART_MODEL.")
+        print("  2. У ключа должна быть область действия yc.ai.imageGeneration.execute")
+        print("     (задаётся при создании ключа, ролями аккаунта не меняется).")
+        print("  3. У сервисного аккаунта — роль ai.imageGeneration.user.")
     else:
         print("Не отвечает ни одна модель. Проверьте статус платёжного аккаунта")
         print("(должен быть ACTIVE или TRIAL_ACTIVE) и правильность ключа.")
@@ -215,17 +267,73 @@ def check_access(post_json: Callable = _post_json) -> int:
 # --------------------------------------------------------------------------- генерация
 
 def generate_image(prompt: str, seed: Optional[int] = None, *,
-                   api_key: Optional[str] = None, folder_id: Optional[str] = None,
-                   width_ratio: str = "1", height_ratio: str = "1",
-                   poll_interval_s: float = POLL_INTERVAL_S,
-                   timeout_s: float = POLL_TIMEOUT_S,
-                   on_poll: Optional[Callable[[int, float], None]] = None,
-                   post_json: Callable = _post_json, get_json: Callable = _get_json,
-                   sleep: Callable[[float], None] = time.sleep) -> GenerationResult:
-    """Запускает генерацию и ждёт результат.
+                   client=None, model: Optional[str] = None, size: str = DEFAULT_SIZE,
+                   api_key: Optional[str] = None, folder_id: Optional[str] = None) -> GenerationResult:
+    """Генерирует изображение через актуальный API Yandex AI Studio.
 
-    Сетевые вызовы вынесены в параметры (`post_json`, `get_json`, `sleep`) — так их
-    подменяют тесты, и логика проверяется без обращения к платному API.
+    Вызов синхронный: изображение приходит сразу в ответе, опрашивать операцию не нужно.
+    `client` вынесен в параметр — так его подменяют тесты, и логика проверяется без
+    обращения к платному API.
+    """
+    client = client or make_client(api_key, folder_id)
+    model = model or model_name()
+    folder_id = folder_id or folder()
+    started = time.perf_counter()
+    try:
+        response = client.images.generate(model=f"art://{folder_id}/{model}",
+                                          prompt=prompt, size=size)
+    except Exception as exc:  # noqa: BLE001 — превращаем ошибку SDK в понятный текст
+        raise YandexArtError(_explain_sdk_error(exc)) from exc
+
+    items = getattr(response, "data", None) or []
+    if not items:
+        raise YandexArtError("Сервис не вернул изображение")
+    b64 = getattr(items[0], "b64_json", None)
+    if not b64:
+        url = getattr(items[0], "url", None)
+        raise YandexArtError(f"В ответе нет картинки в виде данных"
+                             + (f", только ссылка: {url}" if url else ""))
+    try:
+        image_bytes = base64.b64decode(b64, validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise YandexArtError(f"Не удалось раскодировать изображение: {exc}") from exc
+
+    return GenerationResult(prompt=prompt, seed=seed, image_bytes=image_bytes,
+                            operation_id=model, polls=1,
+                            elapsed_s=round(time.perf_counter() - started, 1))
+
+
+def _explain_sdk_error(exc: Exception) -> str:
+    """Понятное объяснение ошибки OpenAI-клиента."""
+    text = str(exc).replace("\n", " ")
+    code = getattr(exc, "status_code", None)
+    if code == 403 and "denied" in text:
+        return ("HTTP 403: доступ к этой модели закрыт. Проверьте, что модель есть в каталоге "
+                "моделей AI Studio и что у ключа область действия yc.ai.imageGeneration.execute. "
+                f"Ответ сервиса: {text[:220]}")
+    hints = {
+        401: "ключ не принят — проверьте YANDEX_API_KEY",
+        402: "недостаточно средств на платёжном аккаунте",
+        404: "модель или адрес не найдены — проверьте название модели и YANDEX_FOLDER_ID",
+        429: "слишком много запросов, сервис просит подождать",
+    }
+    if code in hints:
+        return f"HTTP {code}: {hints[code]}. Ответ сервиса: {text[:220]}"
+    return f"{type(exc).__name__}: {text[:300]}"
+
+
+def generate_image_legacy(prompt: str, seed: Optional[int] = None, *,
+                          api_key: Optional[str] = None, folder_id: Optional[str] = None,
+                          width_ratio: str = "1", height_ratio: str = "1",
+                          poll_interval_s: float = POLL_INTERVAL_S,
+                          timeout_s: float = POLL_TIMEOUT_S,
+                          on_poll: Optional[Callable[[int, float], None]] = None,
+                          post_json: Callable = _post_json, get_json: Callable = _get_json,
+                          sleep: Callable[[float], None] = time.sleep) -> GenerationResult:
+    """Способ из урока: асинхронная операция и опрос статуса.
+
+    На сентябрь 2026 отвечает отказом — модель `yandex-art` недоступна. Оставлен, чтобы
+    показать разницу и проверить, не вернулась ли она.
     """
     api_key = api_key or art_api_key()
     folder_id = folder_id or os.getenv("YANDEX_FOLDER_ID", "") or os.getenv("YANDEX_CLOUD_ID", "")
@@ -293,40 +401,33 @@ class Prompt:
 
 # Собственные промпты (задание требует не брать промпт эксперта): логотипы для SINTARIS —
 # продукта по управлению сертификатами медицинских изделий.
+#
+# Промпты намеренно короткие. Первая версия была втрое длиннее и с перечислением деталей —
+# модель размывала их в декоративную картинку вместо знака (сравнение сохранено в
+# results/v1-длинные-промпты/). Для логотипа работает другое правило: один объект,
+# два цвета, слово «логотип» в начале и явный запрет надписей в конце.
 PROMPTS: list[Prompt] = [
     Prompt(
         key="shield-check",
         title="Щит с галочкой — основной знак",
-        text=(
-            "Минималистичный векторный логотип для компании SINTARIS: щит со вписанной "
-            "галочкой внутри, в центре тонкая линия в виде медицинского креста. "
-            "Два цвета: глубокий синий и белый, на белом фоне. "
-            "Плоский стиль, чистые геометрические формы, без текста и без букв, "
-            "чёткие края, подходит для печати на документах."
-        ),
+        # «галочка» без пояснения рисовалась треугольником — добавлен английский термин
+        text=("Логотип: синий щит, внутри белая галочка как знак подтверждения check mark. "
+              "Плоский минималистичный векторный знак по центру на белом фоне. Без текста."),
         tags=["минимализм", "доверие", "медицина"],
     ),
     Prompt(
         key="document-seal",
         title="Документ с печатью — знак соответствия",
-        text=(
-            "Строгий корпоративный логотип: стилизованный лист документа с круглой печатью "
-            "в правом нижнем углу, печать образована кольцом из двенадцати звёзд. "
-            "Синий и серебристый цвета на белом фоне, плоский векторный стиль, "
-            "тонкие линии, без текста и без букв, симметричная композиция."
-        ),
-        tags=["официальный", "сертификация", "Европа"],
+        text=("Логотип: белый лист документа с синей круглой печатью. "
+              "Плоский минималистичный векторный знак по центру на белом фоне. Без текста."),
+        tags=["официальный", "сертификация"],
     ),
     Prompt(
         key="tech-pulse",
-        title="Пульс и микросхема — ассистент по нормам",
-        text=(
-            "Современный технологичный логотип: линия кардиограммы переходит в дорожку "
-            "печатной платы с узлами-точками. Градиент от бирюзового к синему, тёмный фон, "
-            "неоновое свечение линий, плоский стиль, без текста и без букв, квадратная "
-            "композиция по центру."
-        ),
-        tags=["технологии", "ИИ", "медтех"],
+        title="Пульс в круге — ассистент по нормам",
+        text=("Логотип: бирюзовая линия кардиограммы внутри синего круга. "
+              "Плоский минималистичный векторный знак по центру на белом фоне. Без текста."),
+        tags=["технологии", "медтех"],
     ),
 ]
 
@@ -344,8 +445,12 @@ def main(argv: Optional[list[str]] = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--prompt", help="свой текст промпта (иначе берутся заготовленные)")
     ap.add_argument("--key", help="ключ заготовленного промпта")
-    ap.add_argument("--seed", type=int, help="зерно генерации: с ним результат воспроизводим")
-    ap.add_argument("--ratio", default="1:1", help="соотношение сторон, например 1:1 или 16:9")
+    ap.add_argument("--seed", type=int, help="зерно генерации (учитывается только в --legacy)")
+    ap.add_argument("--model", help=f"модель, по умолчанию {DEFAULT_MODEL}")
+    ap.add_argument("--size", default=DEFAULT_SIZE, help=f"размер, по умолчанию {DEFAULT_SIZE}")
+    ap.add_argument("--legacy", action="store_true",
+                    help="способ из урока (асинхронная операция, модель yandex-art) — сейчас не работает")
+    ap.add_argument("--ratio", default="1:1", help="соотношение сторон для --legacy, например 1:1")
     ap.add_argument("--out", default="results", help="папка для картинок")
     ap.add_argument("--list", action="store_true", help="показать заготовленные промпты и выйти")
     ap.add_argument("--dry-run", action="store_true", help="собрать запрос и показать его, не отправляя")
@@ -391,25 +496,33 @@ def main(argv: Optional[list[str]] = None) -> int:
 
     out_dir = HERE / args.out
     stamp = datetime.now().strftime("%Y%m%d-%H%M")
+    model = args.model or model_name()
+    print(f"Модель: {'yandex-art (способ из урока)' if args.legacy else model}\n")
+
     ok = 0
     for p in jobs:
-        print(f"\n=== {p.key}: {p.title}")
-        print(f"Промпт: {p.text}")
+        print(f"=== {p.key}: {p.title}")
+        print(f"Промпт ({len(p.text)} символов): {p.text}")
+        if len(p.text) > PROMPT_LIMIT:
+            print(f"  ВНИМАНИЕ: у модели предел {PROMPT_LIMIT} символов, лишнее будет отброшено")
         try:
-            def report(n: int, elapsed: float, _p=p) -> None:
-                print(f"  ожидание… проверка {n}, прошло {elapsed:.0f} с")
+            if args.legacy:
+                def report(n: int, elapsed: float) -> None:
+                    print(f"  ожидание… проверка {n}, прошло {elapsed:.0f} с")
 
-            res = generate_image(p.text, args.seed, width_ratio=width, height_ratio=height,
-                                 on_poll=report)
+                res = generate_image_legacy(p.text, args.seed, width_ratio=width,
+                                            height_ratio=height, on_poll=report)
+            else:
+                res = generate_image(p.text, model=model, size=args.size)
         except YandexArtError as exc:
-            print(f"  ОШИБКА: {exc}", file=sys.stderr)
+            print(f"  ОШИБКА: {exc}\n", file=sys.stderr)
             continue
         path = save_image(res, out_dir, f"{stamp}_{p.key}")
         ok += 1
-        print(f"  готово за {res.elapsed_s} с ({res.polls} проверок), {res.size_kb:.0f} КБ")
-        print(f"  сохранено: {path.relative_to(HERE)}")
+        print(f"  готово за {res.elapsed_s} с, {res.size_kb:.0f} КБ")
+        print(f"  сохранено: {path.relative_to(HERE)}\n")
 
-    print(f"\nУспешно сгенерировано: {ok} из {len(jobs)}")
+    print(f"Успешно сгенерировано: {ok} из {len(jobs)}")
     return 0 if ok == len(jobs) else 1
 
 

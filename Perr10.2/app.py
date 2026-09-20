@@ -44,49 +44,27 @@ if hasattr(sys.stdout, "reconfigure"):
 RESULTS_DIR = HERE / "results" / "logos"
 GALLERY_FILE = HERE / "results" / "gallery.json"
 
-# Стили: к запросу пользователя подмешивается описание с меньшим весом, чем сам запрос.
+# Стили намеренно короткие: два-три признака, не больше. Длинные описания модель
+# превращает в декоративную иллюстрацию вместо знака — проверено на этом же приложении
+# (сравнение двух серий лежит в задании 10.1, папка results/v1-длинные-промпты).
 STYLES: dict[str, dict] = {
-    "minimal": {
-        "title": "Минимализм",
-        "text": "минималистичный плоский векторный знак, простые геометрические формы, "
-                "максимум два цвета, много воздуха, без мелких деталей",
-    },
-    "corporate": {
-        "title": "Деловой",
-        "text": "строгий корпоративный стиль, сдержанная палитра синего и серого, "
-                "симметричная композиция, ощущение надёжности и официальности",
-    },
-    "medtech": {
-        "title": "Медтех",
-        "text": "медицинская тематика, чистые линии, бирюзовый и синий, "
-                "ассоциации с точностью, безопасностью и заботой о здоровье",
-    },
-    "tech": {
-        "title": "Технологичный",
-        "text": "технологичный футуристичный стиль, тонкие светящиеся линии, "
-                "градиент, тёмный фон, ощущение цифрового продукта",
-    },
-    "document": {
-        "title": "Документ и печать",
-        "text": "мотив документа, печати или подписи, официальный знак соответствия, "
-                "тонкая линия, сдержанные цвета",
-    },
-    "vintage": {
-        "title": "Винтаж",
-        "text": "винтажный стиль, классическая эмблема, тонкая штриховка, "
-                "приглушённая охристая палитра",
-    },
+    "minimal": {"title": "Минимализм", "text": "минималистичный, два цвета, простые формы"},
+    "corporate": {"title": "Деловой", "text": "строгий, синий и серый, симметричный"},
+    "medtech": {"title": "Медтех", "text": "медицинский, синий и бирюзовый, чистые линии"},
+    "tech": {"title": "Технологичный", "text": "технологичный, синий градиент, тонкие линии"},
+    "document": {"title": "Документ и печать", "text": "мотив документа и печати, синий"},
+    "vintage": {"title": "Винтаж", "text": "винтажная эмблема, охристый, тонкая линия"},
 }
 
 FORMATS: dict[str, dict] = {
-    "logo":   {"title": "Логотип 1:1", "w": "1", "h": "1"},
-    "icon":   {"title": "Иконка 1:1", "w": "1", "h": "1"},
-    "banner": {"title": "Баннер 16:9", "w": "16", "h": "9"},
-    "story":  {"title": "Вертикальный 9:16", "w": "9", "h": "16"},
+    "logo":   {"title": "Логотип 1:1", "size": "1024x1024"},
+    "icon":   {"title": "Иконка 1:1", "size": "1024x1024"},
+    "banner": {"title": "Баннер 16:9", "size": "1280x720"},
+    "story":  {"title": "Вертикальный 9:16", "size": "720x1280"},
 }
 
 # Хвост промпта: для знака важно запретить надписи — модели склонны рисовать нечитаемые буквы.
-NO_TEXT_TAIL = "без текста, без букв и цифр, на белом фоне, чёткие края"
+NO_TEXT_TAIL = "плоский векторный знак по центру на белом фоне, без текста"
 
 
 @dataclass
@@ -112,11 +90,13 @@ JOBS_LOCK = threading.Lock()
 
 def build_prompt(company: str, style: str, extra: str, fmt: str) -> str:
     """Собирает итоговый промпт из частей: что рисуем, в каком стиле, что запрещено."""
+    # «Логотип:» в начале — не украшение: с этим словом модель рисует знак,
+    # без него охотно уходит в иллюстрацию.
     what = {
         "logo": f'Логотип компании «{company}»',
         "icon": f'Иконка приложения «{company}»',
-        "banner": f'Широкий баннер для сайта компании «{company}»',
-        "story": f'Вертикальная обложка для компании «{company}»',
+        "banner": f'Баннер компании «{company}»',
+        "story": f'Вертикальная обложка компании «{company}»',
     }.get(fmt, f'Логотип компании «{company}»')
 
     parts = [what + "."]
@@ -159,14 +139,8 @@ def run_job(job: Job, demo: bool) -> None:
             image_bytes = _demo_image(job.prompt)
             elapsed, polls, seed = 1.5, 1, job.seed
         else:
-            f = FORMATS.get(job.fmt, FORMATS["logo"])
-
-            def on_poll(n: int, _elapsed: float) -> None:
-                with JOBS_LOCK:
-                    job.polls = n
-
-            res = ya.generate_image(job.prompt, job.seed, width_ratio=f["w"], height_ratio=f["h"],
-                                    on_poll=on_poll)
+            # Актуальный API AI Studio принимает размер в пикселях, а не соотношение сторон
+            res = ya.generate_image(job.prompt, job.seed, size=FORMATS.get(job.fmt, FORMATS["logo"])["size"])
             image_bytes, elapsed, polls, seed = res.image_bytes, res.elapsed_s, res.polls, res.seed
 
         RESULTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -190,21 +164,42 @@ def run_job(job: Job, demo: bool) -> None:
             job.status, job.message = "error", f"Непредвиденная ошибка: {exc}"
 
 
+GALLERY_LOCK = threading.Lock()
+
+
 def append_gallery(job: Job) -> None:
-    """Запоминает удачный результат вместе с промптом и зерном, чтобы его можно было повторить."""
-    GALLERY_FILE.parent.mkdir(parents=True, exist_ok=True)
-    items = load_gallery()
-    items.insert(0, asdict(job))
-    GALLERY_FILE.write_text(json.dumps(items[:60], ensure_ascii=False, indent=2), encoding="utf-8")
+    """Запоминает удачный результат вместе с промптом и зерном, чтобы его можно было повторить.
+
+    Блокировка обязательна: задачи выполняются в разных потоках, и при одновременном
+    завершении двух генераций «прочитать файл целиком → дописать → записать целиком»
+    затирает чужую запись. На трёх параллельных задачах это ломало файл целиком —
+    записи накладывались друг на друга, разбор падал, а галерея молча оказывалась пустой.
+    """
+    with GALLERY_LOCK:
+        GALLERY_FILE.parent.mkdir(parents=True, exist_ok=True)
+        items = _read_gallery()
+        items.insert(0, asdict(job))
+        # пишем через временный файл: если процесс прервут на середине, целый файл уцелеет
+        tmp = GALLERY_FILE.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(items[:60], ensure_ascii=False, indent=2), encoding="utf-8")
+        tmp.replace(GALLERY_FILE)
 
 
-def load_gallery() -> list[dict]:
+def _read_gallery() -> list[dict]:
     if not GALLERY_FILE.exists():
         return []
     try:
-        return json.loads(GALLERY_FILE.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
+        data = json.loads(GALLERY_FILE.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as exc:
+        # не проглатываем молча: испорченный файл должен быть заметен в логе
+        print(f"[галерея] файл повреждён и будет перезаписан: {exc}", file=sys.stderr)
         return []
+    return data if isinstance(data, list) else []
+
+
+def load_gallery() -> list[dict]:
+    with GALLERY_LOCK:
+        return _read_gallery()
 
 
 def create_app(demo: bool = False) -> Flask:

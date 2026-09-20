@@ -42,6 +42,5 @@ Perr9.1/results/run.log
 # заглушки демо-режима; настоящие логотипы (после получения ключа) коммитятся
 Perr10.2/results/gallery.json
 Perr10.3/results/*.mp4
-Perr10.1/results/
 __pycache__/
 .pytest_cache/

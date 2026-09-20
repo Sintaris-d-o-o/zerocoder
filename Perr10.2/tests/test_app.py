@@ -38,7 +38,7 @@ def wait_for(client, job_id, timeout=20):
 def test_prompt_combines_company_style_and_extra():
     p = webapp.build_prompt("SINTARIS", "medtech", "щит с галочкой", "logo")
     assert "«SINTARIS»" in p
-    assert "медицинская тематика" in p                  # текст стиля подмешан
+    assert "медицинский" in p                          # текст стиля подмешан
     assert "щит с галочкой" in p                        # свободное описание пользователя
     assert webapp.NO_TEXT_TAIL in p                     # запрет надписей на знаке
 
@@ -155,3 +155,35 @@ def test_error_from_api_becomes_message(client, monkeypatch):
         job = wait_for(c, job_id)
         assert job["status"] == "error"
         assert "403" in job["message"]
+
+
+def test_gallery_survives_parallel_writes(tmp_path, monkeypatch):
+    """Три задачи, завершившиеся одновременно, не должны портить файл галереи.
+
+    Этот дефект был найден на реальном прогоне: три потока писали файл целиком
+    без блокировки, записи наложились, разбор JSON падал, и галерея молча пустела.
+    """
+    import threading
+
+    monkeypatch.setattr(webapp, "GALLERY_FILE", tmp_path / "gallery.json")
+    jobs = [webapp.Job(job_id=f"j{i}", prompt="p", company=f"Фирма {i}", style="minimal",
+                       fmt="logo", seed=None, status="done", filename=f"{i}.jpeg")
+            for i in range(12)]
+
+    threads = [threading.Thread(target=webapp.append_gallery, args=(j,)) for j in jobs]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    items = webapp.load_gallery()
+    assert len(items) == len(jobs), "часть записей потерялась при параллельной записи"
+    assert {i["company"] for i in items} == {j.company for j in jobs}
+
+
+def test_broken_gallery_file_does_not_crash(tmp_path, monkeypatch, capsys):
+    path = tmp_path / "gallery.json"
+    path.write_text("[{}]  мусор ]", encoding="utf-8")
+    monkeypatch.setattr(webapp, "GALLERY_FILE", path)
+    assert webapp.load_gallery() == []
+    assert "повреждён" in capsys.readouterr().err     # молча не проглатываем

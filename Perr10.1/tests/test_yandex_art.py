@@ -52,8 +52,9 @@ def creds(monkeypatch):
 
 
 def run(api: FakeApi, prompt="логотип", seed=None, **kw):
-    return ya.generate_image(prompt, seed, post_json=api.post, get_json=api.get,
-                             sleep=api.sleep, **kw)
+    """Прогон способа из урока (асинхронная операция) на подменённой сети."""
+    return ya.generate_image_legacy(prompt, seed, post_json=api.post, get_json=api.get,
+                                    sleep=api.sleep, **kw)
 
 
 def test_payload_matches_lesson_structure():
@@ -161,15 +162,13 @@ def test_check_access_distinguishes_role_from_billing(monkeypatch, capsys):
     monkeypatch.setenv("YANDEX_API_KEY", "k")
     monkeypatch.setenv("YANDEX_FOLDER_ID", "b1gtest")
 
-    def post(url, payload, headers, timeout=30):
-        if "imageGeneration" in url:
-            raise ya.YandexArtError(ya._explain_http_error(
-                403, '{"error":"Access to model art://yandex-art/latest denied"}'))
-        return {"result": {}}
+    def boom(*a, **k):
+        raise ya.YandexArtError("HTTP 403: доступ к этой модели закрыт")
 
-    assert ya.check_access(post_json=post) == 1
+    monkeypatch.setattr(ya, "generate_image", boom)
+    assert ya.check_access(post_json=lambda *a, **k: {"result": {}}) == 1
     out = capsys.readouterr().out
-    assert "текстовая модель: доступна" in out
+    assert "текстовая модель:  доступна" in out
     assert "ai.imageGeneration.user" in out
     assert "b1gtest" in out
 
@@ -178,24 +177,26 @@ def test_check_access_reports_everything_down(monkeypatch, capsys):
     monkeypatch.setenv("YANDEX_API_KEY", "k")
     monkeypatch.setenv("YANDEX_FOLDER_ID", "b1gtest")
 
-    def post(url, payload, headers, timeout=30):
+    def boom(*a, **k):
         raise ya.YandexArtError("HTTP 401: ключ не принят")
 
-    assert ya.check_access(post_json=post) == 1
+    monkeypatch.setattr(ya, "generate_image", boom)
+    assert ya.check_access(post_json=lambda *a, **k: (_ for _ in ()).throw(
+        ya.YandexArtError("HTTP 401: ключ не принят"))) == 1
     assert "Не отвечает ни одна модель" in capsys.readouterr().out
 
 
 def test_check_access_happy_path(monkeypatch, capsys):
     monkeypatch.setenv("YANDEX_API_KEY", "k")
     monkeypatch.setenv("YANDEX_FOLDER_ID", "b1gtest")
+    monkeypatch.setattr(ya, "generate_image", lambda *a, **k: None)
     assert ya.check_access(post_json=lambda *a, **k: {"id": "op"}) == 0
     assert "Всё готово" in capsys.readouterr().out
 
 
 def test_check_access_without_credentials(monkeypatch, capsys):
-    monkeypatch.delenv("YANDEX_API_KEY", raising=False)
-    monkeypatch.delenv("YANDEX_FOLDER_ID", raising=False)
-    monkeypatch.delenv("YANDEX_CLOUD_ID", raising=False)
+    for name in ("YANDEX_API_KEY", "YANDEX_ART_API_KEY", "YANDEX_FOLDER_ID", "YANDEX_CLOUD_ID"):
+        monkeypatch.delenv(name, raising=False)
     assert ya.check_access(post_json=lambda *a, **k: {}) == 2
     assert "НЕ ЗАДАН" in capsys.readouterr().out
 
@@ -229,11 +230,91 @@ def test_find_prompt():
 def test_cli_list_and_dry_run_do_not_call_api(creds, capsys):
     assert ya.main(["--list"]) == 0
     assert "shield-check" in capsys.readouterr().out
-    assert ya.main(["--dry-run", "--key", "tech-pulse"]) == 0
+    assert ya.main(["--dry-run", "--key", "tech-pulse", "--legacy"]) == 0
     out = capsys.readouterr().out
     assert "art://test-folder/yandex-art/latest" in out
     assert "деньги не потрачены" in out
 
 
 def test_cli_rejects_bad_ratio(creds, capsys):
-    assert ya.main(["--dry-run", "--ratio", "квадрат"]) == 2
+    assert ya.main(["--dry-run", "--ratio", "квадрат", "--legacy"]) == 2
+
+
+# ---------------------------------------------------------------- актуальный путь (AI Studio)
+
+class FakeImages:
+    """Подменяет client.images: отдаёт готовое изображение сразу, без опроса операции."""
+
+    def __init__(self, b64=PIXEL, error=None):
+        self.b64, self.error = b64, error
+        self.calls = []
+
+    def generate(self, **kwargs):
+        self.calls.append(kwargs)
+        if self.error:
+            raise self.error
+        from types import SimpleNamespace
+        return SimpleNamespace(data=[SimpleNamespace(b64_json=self.b64, url=None)])
+
+
+def fake_client(**kw):
+    from types import SimpleNamespace
+    return SimpleNamespace(images=FakeImages(**kw))
+
+
+def test_new_api_sends_model_uri_with_folder(creds):
+    c = fake_client()
+    ya.generate_image("логотип щита", client=c, model="yandex-art-2.0/latest",
+                      folder_id="b1gtest")
+    sent = c.images.calls[0]
+    assert sent["model"] == "art://b1gtest/yandex-art-2.0/latest"
+    assert sent["prompt"] == "логотип щита"
+    assert sent["size"] == ya.DEFAULT_SIZE
+
+
+def test_new_api_decodes_image(creds):
+    res = ya.generate_image("логотип", client=fake_client(), folder_id="b1gtest")
+    assert res.image_bytes.startswith(b"\xff\xd8\xff")     # это JPEG
+    assert res.polls == 1                                   # опрашивать нечего, ответ сразу
+
+
+def test_new_api_reports_broken_base64(creds):
+    c = fake_client(b64="не base64!!!")
+    with pytest.raises(ya.YandexArtError, match="раскодировать"):
+        ya.generate_image("логотип", client=c, folder_id="b1gtest")
+
+
+def test_new_api_reports_empty_answer(creds):
+    from types import SimpleNamespace
+    c = SimpleNamespace(images=SimpleNamespace(generate=lambda **k: SimpleNamespace(data=[])))
+    with pytest.raises(ya.YandexArtError, match="не вернул изображение"):
+        ya.generate_image("логотип", client=c, folder_id="b1gtest")
+
+
+@pytest.mark.parametrize("code,fragment", [
+    (401, "YANDEX_API_KEY"), (402, "средств"), (404, "модель"), (429, "подождать"),
+])
+def test_sdk_errors_are_explained(code, fragment):
+    exc = RuntimeError("boom")
+    exc.status_code = code
+    assert fragment in ya._explain_sdk_error(exc)
+
+
+def test_sdk_403_points_at_model_catalogue():
+    exc = RuntimeError("Error code: 403 - Access to model art://x/yandex-art/latest denied")
+    exc.status_code = 403
+    msg = ya._explain_sdk_error(exc)
+    assert "каталоге моделей" in msg and "imageGeneration" in msg
+
+
+def test_model_can_be_overridden_by_env(monkeypatch):
+    monkeypatch.setenv("YANDEX_ART_MODEL", "aliceai-image-art-3.0/latest")
+    assert ya.model_name() == "aliceai-image-art-3.0/latest"
+    monkeypatch.delenv("YANDEX_ART_MODEL")
+    assert ya.model_name() == ya.DEFAULT_MODEL
+
+
+def test_prompts_fit_the_model_limit():
+    # у YandexART 2.0 предел 500 символов, указан в карточке модели
+    for p in ya.PROMPTS:
+        assert len(p.text) <= ya.PROMPT_LIMIT, f"{p.key}: промпт длиннее предела модели"
