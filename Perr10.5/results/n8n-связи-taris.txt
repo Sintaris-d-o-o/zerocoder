@@ -1,0 +1,51 @@
+Рабочие процессы в n8n 2.39.8 (порт 5681)
+------------------------------------------------------------------------------
+  Taris - Campaign Send                      выключен  вебхуки: taris-campaign-send
+  Zerocoder 10.5 — Автопостинг в Telegram    включён   вебхуки: zerocoder-autopost
+  Taris - Content Generate                   включён   вебхуки: taris-content-generate
+
+Настройки экземпляров Taris, указывающие на n8n
+------------------------------------------------------------------------------
+
+  certtaris  (/home/stas/.taris-cert/bot.env)
+    N8N_BASE                     http://127.0.0.1:5681
+                                 ✔ n8n по этому адресу отвечает  (0.0 с)
+    N8N_CONTENT_GENERATE_WH      http://127.0.0.1:5681/webhook/taris-content-generate
+                                 ✔ отвечает  (7.1 с)
+    N8N_CONTENT_TIMEOUT          60
+    N8N_TIMEOUT                  30
+
+  certtaris-eng  (/home/stas/.taris-cert-eng/bot.env)
+    N8N_BASE                     http://127.0.0.1:5681
+                                 ✔ n8n по этому адресу отвечает  (0.0 с)
+    N8N_CONTENT_GENERATE_WH      http://127.0.0.1:5681/webhook/taris-content-generate
+                                 ✔ отвечает  (5.4 с)
+    N8N_CONTENT_TIMEOUT          60
+    N8N_TIMEOUT                  30
+
+  supertaris  (/home/stas/.taris/bot.env)
+    N8N_API_KEY                  (задан)
+    N8N_CAMPAIGN_SELECT_WH       http://127.0.0.1:5678/webhook/taris-content-generate
+                                 ✘ адрес недоступен  (0.0 с)
+    N8N_CAMPAIGN_SEND_WH         http://127.0.0.1:5678/webhook/taris-campaign-send
+                                 ✘ адрес недоступен  (0.0 с)
+    N8N_CAMPAIGN_TIMEOUT         90
+    N8N_CONTENT_TIMEOUT          60
+    N8N_INBOUND_EVENTS_ENABLED   1
+    N8N_TIMEOUT                  30
+    N8N_URL                      http://127.0.0.1:5678
+                                 ✘ n8n по этому адресу не отвечает  (0.0 с)
+    N8N_WEBHOOK_SECRET           (задан)
+
+Сходится ли назначение вебхука с процессом, в который он ведёт
+------------------------------------------------------------------------------
+  certtaris      N8N_CONTENT_GENERATE_WH      → taris-content-generate     процесс: Taris - Content Generate
+  certtaris-eng  N8N_CONTENT_GENERATE_WH      → taris-content-generate     процесс: Taris - Content Generate
+  supertaris     N8N_CAMPAIGN_SELECT_WH       → taris-content-generate     процесс: Taris - Content Generate
+  supertaris     N8N_CAMPAIGN_SEND_WH         → taris-campaign-send        процесс: Taris - Campaign Send
+
+Итог
+------------------------------------------------------------------------------
+  ! supertaris: N8N_CAMPAIGN_SELECT_WH — адрес недоступен
+  ! supertaris: N8N_CAMPAIGN_SEND_WH — адрес недоступен
+  ! supertaris: N8N_URL указывает на n8n, которого нет по этому адресу
