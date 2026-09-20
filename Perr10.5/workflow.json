@@ -58,7 +58,7 @@
       "id": "ai-1",
       "name": "AI — Message a model",
       "type": "n8n-nodes-base.openAi",
-      "typeVersion": 1.8,
+      "typeVersion": 1.1,
       "position": [
         180,
         0
@@ -91,7 +91,7 @@
       "id": "http-1",
       "name": "HTTP Request — Telegram API",
       "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "typeVersion": 4,
       "position": [
         620,
         0

@@ -200,3 +200,52 @@ def test_parse_node_uses_index_zero():
                     .read_text(encoding="utf-8"))
     parse = next(n for n in wf["nodes"] if n["name"] == "Parse Response")
     assert "choices?.[0]" in parse["parameters"]["jsCode"]
+
+
+# --------------------------------------------------------------- совместимость версий
+
+# Версии узлов, которые поддерживает установленный n8n (проверено на 2.17.7)
+# и которые уже используются в рабочих процессах Taris.
+KNOWN_GOOD_VERSIONS = {
+    "n8n-nodes-base.webhook": {2},
+    "n8n-nodes-base.code": {2},
+    "n8n-nodes-base.openAi": {1, 1.1},        # узел поддерживает только эти две
+    "n8n-nodes-base.httpRequest": {4, 4.1, 4.2},
+    "n8n-nodes-base.respondToWebhook": {1, 1.1},
+}
+
+
+def test_node_versions_are_supported_by_installed_n8n():
+    """Версия узла, которой нет в установленном n8n, не загрузится при импорте.
+
+    Ошибка ловится здесь, а не после развёртывания: узел OpenAI в n8n 2.17.7
+    поддерживает только версии 1 и 1.1, хотя у других узлов номера ушли далеко вперёд.
+    """
+    wf = json.loads((Path(__file__).resolve().parents[1] / "workflow.json")
+                    .read_text(encoding="utf-8"))
+    for node in wf["nodes"]:
+        allowed = KNOWN_GOOD_VERSIONS.get(node["type"])
+        assert allowed, f"узел {node['type']} не проверен на совместимость"
+        assert node["typeVersion"] in allowed, (
+            f"{node['name']}: typeVersion={node['typeVersion']}, "
+            f"а установленный n8n знает только {sorted(allowed)}")
+
+
+def test_versions_match_the_taris_workflows():
+    """Наша цепочка использует те же версии узлов, что и рабочие процессы Taris.
+
+    Если продукт переедет на новую версию n8n, ломаться будут обе разом,
+    а не по очереди — и чинить придётся один раз.
+    """
+    wf = json.loads((Path(__file__).resolve().parents[1] / "workflow.json")
+                    .read_text(encoding="utf-8"))
+    ours = {n["type"]: n["typeVersion"] for n in wf["nodes"]}
+    taris = {                      # из src/n8n/workflows/Taris - Content Generate.json
+        "n8n-nodes-base.webhook": 2,
+        "n8n-nodes-base.code": 2,
+        "n8n-nodes-base.openAi": 1.1,
+        "n8n-nodes-base.respondToWebhook": 1,
+    }
+    for node_type, version in taris.items():
+        assert ours.get(node_type) == version, (
+            f"{node_type}: у нас {ours.get(node_type)}, у Taris {version}")
