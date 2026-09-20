@@ -110,15 +110,70 @@ def _read(req: urllib.request.Request, timeout: int) -> dict:
 
 def _explain_http_error(code: int, body: str) -> str:
     """Понятное объяснение вместо голого кода ошибки."""
+    if code == 403 and "denied" in body:
+        return ("HTTP 403: доступ к модели генерации изображений закрыт. Если текстовые модели "
+                "при этом работают (проверьте командой --check), дело не в оплате, а в правах: "
+                "выдайте сервисному аккаунту роль ai.imageGeneration.user в своём каталоге. "
+                f"Ответ сервера: {body}")
+    if code == 400 and "does not match with service account folder" in body:
+        return ("HTTP 400: в YANDEX_FOLDER_ID указан не тот каталог. Правильный идентификатор "
+                f"сервис назвал сам в ответе: {body}")
     hints = {
         401: "ключ не принят. Проверьте YANDEX_API_KEY и что перед ним стоит префикс Api-Key",
-        403: "доступ запрещён. У сервисного аккаунта должна быть роль ai.imageGeneration.user, "
-             "а у платёжного аккаунта — статус ACTIVE или TRIAL_ACTIVE",
+        403: "доступ запрещён. Проверьте роль сервисного аккаунта и статус платёжного аккаунта",
         404: "адрес не найден. Проверьте YANDEX_FOLDER_ID — он входит в modelUri",
         429: "слишком много запросов, сервис просит подождать",
     }
     hint = hints.get(code, "непредвиденный ответ сервиса")
     return f"HTTP {code}: {hint}. Ответ сервера: {body}"
+
+
+def check_access(post_json: Callable = _post_json) -> int:
+    """Проверяет доступ и различает две частые причины отказа. Генерацию не запускает.
+
+    Текстовая модель и модель картинок оплачиваются одним аккаунтом, но права на них выдаются
+    отдельно. Если текст работает, а картинки нет — дело в роли, а не в деньгах.
+    """
+    key = os.getenv("YANDEX_API_KEY", "")
+    folder = os.getenv("YANDEX_FOLDER_ID", "") or os.getenv("YANDEX_CLOUD_ID", "")
+    print("Проверка доступа к Yandex Cloud")
+    print(f"  ключ:    {'задан, ' + str(len(key)) + ' символов' if key else 'НЕ ЗАДАН'}")
+    print(f"  каталог: {folder or 'НЕ ЗАДАН'}")
+    if not key or not folder:
+        print("\nДобавьте недостающее в .env — см. .env.example")
+        return 2
+
+    headers = build_headers(key)
+    results = {}
+    for label, url, payload in (
+        ("текстовая модель", "https://llm.api.cloud.yandex.net/foundationModels/v1/completion",
+         {"modelUri": f"gpt://{folder}/yandexgpt-lite",
+          "completionOptions": {"maxTokens": 1, "temperature": 0},
+          "messages": [{"role": "user", "text": "."}]}),
+        ("генерация картинок", GENERATE_URL,
+         build_payload("простой синий круг", None, folder)),
+    ):
+        try:
+            post_json(url, payload, headers)
+            results[label] = True
+            print(f"  {label}: доступна")
+        except YandexArtError as exc:
+            results[label] = False
+            print(f"  {label}: НЕТ — {exc}".split(". Ответ сервера")[0])
+
+    print()
+    if results.get("генерация картинок"):
+        print("Всё готово: можно запускать генерацию.")
+        return 0
+    if results.get("текстовая модель"):
+        print("Оплата и ключ в порядке — текстовая модель отвечает.")
+        print("Закрыт доступ именно к модели картинок. Что сделать в консоли Yandex Cloud:")
+        print(f"  каталог {folder} → «Права доступа» → найти свой сервисный аккаунт →")
+        print("  «Назначить роли» → добавить роль ai.imageGeneration.user.")
+    else:
+        print("Не отвечает ни одна модель. Проверьте статус платёжного аккаунта")
+        print("(должен быть ACTIVE или TRIAL_ACTIVE) и правильность ключа.")
+    return 1
 
 
 # --------------------------------------------------------------------------- генерация
@@ -258,7 +313,12 @@ def main(argv: Optional[list[str]] = None) -> int:
     ap.add_argument("--out", default="results", help="папка для картинок")
     ap.add_argument("--list", action="store_true", help="показать заготовленные промпты и выйти")
     ap.add_argument("--dry-run", action="store_true", help="собрать запрос и показать его, не отправляя")
+    ap.add_argument("--check", action="store_true",
+                    help="проверить доступ и понять, чего не хватает (генерацию не запускает)")
     args = ap.parse_args(argv)
+
+    if args.check:
+        return check_access()
 
     if args.list:
         print(f"Заготовленные промпты ({len(PROMPTS)}):\n")

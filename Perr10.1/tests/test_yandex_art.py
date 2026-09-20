@@ -134,10 +134,70 @@ def test_no_operation_id(creds):
 
 
 @pytest.mark.parametrize("code,fragment", [
-    (401, "Api-Key"), (403, "ai.imageGeneration.user"), (404, "FOLDER_ID"), (429, "подождать"),
+    (401, "Api-Key"), (403, "роль"), (404, "FOLDER_ID"), (429, "подождать"),
 ])
 def test_http_errors_are_explained(code, fragment):
     assert fragment in ya._explain_http_error(code, "{}")
+
+
+def test_403_on_image_model_names_the_missing_role():
+    # реальный ответ сервиса, когда текстовые модели работают, а картинки закрыты
+    body = '{"error":"Access to model art://yandex-art/latest denied","code":7}'
+    msg = ya._explain_http_error(403, body)
+    assert "ai.imageGeneration.user" in msg
+    assert "не в оплате" in msg
+
+
+def test_400_wrong_folder_points_at_the_right_one():
+    body = ("{\"error\":\"Specified folder ID 'b1gaaa' does not match with service account "
+            "folder ID 'b1gdqhis8b1h49h8okok'\"}")
+    msg = ya._explain_http_error(400, body)
+    assert "не тот каталог" in msg
+    assert "b1gdqhis8b1h49h8okok" in msg      # подсказываем правильный, он есть в ответе сервиса
+
+
+def test_check_access_distinguishes_role_from_billing(monkeypatch, capsys):
+    """Текст отвечает, картинки нет → дело в роли, а не в деньгах."""
+    monkeypatch.setenv("YANDEX_API_KEY", "k")
+    monkeypatch.setenv("YANDEX_FOLDER_ID", "b1gtest")
+
+    def post(url, payload, headers, timeout=30):
+        if "imageGeneration" in url:
+            raise ya.YandexArtError(ya._explain_http_error(
+                403, '{"error":"Access to model art://yandex-art/latest denied"}'))
+        return {"result": {}}
+
+    assert ya.check_access(post_json=post) == 1
+    out = capsys.readouterr().out
+    assert "текстовая модель: доступна" in out
+    assert "ai.imageGeneration.user" in out
+    assert "b1gtest" in out
+
+
+def test_check_access_reports_everything_down(monkeypatch, capsys):
+    monkeypatch.setenv("YANDEX_API_KEY", "k")
+    monkeypatch.setenv("YANDEX_FOLDER_ID", "b1gtest")
+
+    def post(url, payload, headers, timeout=30):
+        raise ya.YandexArtError("HTTP 401: ключ не принят")
+
+    assert ya.check_access(post_json=post) == 1
+    assert "Не отвечает ни одна модель" in capsys.readouterr().out
+
+
+def test_check_access_happy_path(monkeypatch, capsys):
+    monkeypatch.setenv("YANDEX_API_KEY", "k")
+    monkeypatch.setenv("YANDEX_FOLDER_ID", "b1gtest")
+    assert ya.check_access(post_json=lambda *a, **k: {"id": "op"}) == 0
+    assert "Всё готово" in capsys.readouterr().out
+
+
+def test_check_access_without_credentials(monkeypatch, capsys):
+    monkeypatch.delenv("YANDEX_API_KEY", raising=False)
+    monkeypatch.delenv("YANDEX_FOLDER_ID", raising=False)
+    monkeypatch.delenv("YANDEX_CLOUD_ID", raising=False)
+    assert ya.check_access(post_json=lambda *a, **k: {}) == 2
+    assert "НЕ ЗАДАН" in capsys.readouterr().out
 
 
 def test_save_image_strips_forbidden_characters(creds, tmp_path):
