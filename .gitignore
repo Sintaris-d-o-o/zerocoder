@@ -43,3 +43,6 @@ Perr9.1/results/run.log
 Perr10.2/results/gallery.json
 __pycache__/
 .pytest_cache/
+
+# Perr10.5: локальное окружение
+Perr10.5/.venv/
