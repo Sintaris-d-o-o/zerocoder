@@ -86,6 +86,22 @@ def build_headers(api_key: str) -> dict:
     return {"Content-Type": "application/json", "Authorization": f"Api-Key {api_key}"}
 
 
+def art_api_key() -> str:
+    """Ключ для генерации картинок.
+
+    У API-ключей Yandex Cloud есть собственная «область действия», отдельная от ролей
+    аккаунта: ключ с областью `yc.ai.languageModels.execute` работает с текстовыми моделями,
+    но к картинкам его не пустят, сколько ролей аккаунту ни выдай. Если область выбирается
+    только одна, нужен второй ключ — его кладут в YANDEX_ART_API_KEY.
+    """
+    return os.getenv("YANDEX_ART_API_KEY", "") or os.getenv("YANDEX_API_KEY", "")
+
+
+def text_api_key() -> str:
+    """Ключ для текстовых моделей — используется только в проверке доступа."""
+    return os.getenv("YANDEX_API_KEY", "") or os.getenv("YANDEX_ART_API_KEY", "")
+
+
 def _post_json(url: str, payload: dict, headers: dict, timeout: int = 30) -> dict:
     req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"),
                                  headers=headers, method="POST")
@@ -134,42 +150,62 @@ def check_access(post_json: Callable = _post_json) -> int:
     Текстовая модель и модель картинок оплачиваются одним аккаунтом, но права на них выдаются
     отдельно. Если текст работает, а картинки нет — дело в роли, а не в деньгах.
     """
-    key = os.getenv("YANDEX_API_KEY", "")
+    import hashlib
+
+    text_key, art_key = text_api_key(), art_api_key()
     folder = os.getenv("YANDEX_FOLDER_ID", "") or os.getenv("YANDEX_CLOUD_ID", "")
     print("Проверка доступа к Yandex Cloud")
-    print(f"  ключ:    {'задан, ' + str(len(key)) + ' символов' if key else 'НЕ ЗАДАН'}")
-    print(f"  каталог: {folder or 'НЕ ЗАДАН'}")
-    if not key or not folder:
+
+    def describe(k: str) -> str:
+        if not k:
+            return "НЕ ЗАДАН"
+        # отпечаток: показывает, менялся ли ключ, но сам ключ не раскрывает
+        return f"{len(k)} символов, отпечаток {hashlib.sha256(k.encode()).hexdigest()[:12]}"
+
+    print(f"  ключ для текста:   {describe(text_key)}")
+    print(f"  ключ для картинок: {describe(art_key)}"
+          + ("  (тот же ключ)" if art_key == text_key and art_key else ""))
+    print(f"  каталог:           {folder or 'НЕ ЗАДАН'}")
+    if not art_key or not folder:
         print("\nДобавьте недостающее в .env — см. .env.example")
         return 2
 
-    headers = build_headers(key)
     results = {}
-    for label, url, payload in (
-        ("текстовая модель", "https://llm.api.cloud.yandex.net/foundationModels/v1/completion",
+    for label, key, url, payload in (
+        ("текстовая модель", text_key,
+         "https://llm.api.cloud.yandex.net/foundationModels/v1/completion",
          {"modelUri": f"gpt://{folder}/yandexgpt-lite",
           "completionOptions": {"maxTokens": 1, "temperature": 0},
           "messages": [{"role": "user", "text": "."}]}),
-        ("генерация картинок", GENERATE_URL,
+        ("генерация картинок", art_key, GENERATE_URL,
          build_payload("простой синий круг", None, folder)),
     ):
         try:
-            post_json(url, payload, headers)
+            post_json(url, payload, build_headers(key))
             results[label] = True
             print(f"  {label}: доступна")
         except YandexArtError as exc:
             results[label] = False
-            print(f"  {label}: НЕТ — {exc}".split(". Ответ сервера")[0])
+            print(f"  {label}: НЕТ — {str(exc).split('. Ответ сервера')[0]}")
 
     print()
     if results.get("генерация картинок"):
         print("Всё готово: можно запускать генерацию.")
         return 0
     if results.get("текстовая модель"):
-        print("Оплата и ключ в порядке — текстовая модель отвечает.")
-        print("Закрыт доступ именно к модели картинок. Что сделать в консоли Yandex Cloud:")
-        print(f"  каталог {folder} → «Права доступа» → найти свой сервисный аккаунт →")
-        print("  «Назначить роли» → добавить роль ai.imageGeneration.user.")
+        print("Оплата и роли в порядке — текстовая модель отвечает тем же ключом.")
+        print("Закрыта только генерация картинок. Самая частая причина — не роль, а")
+        print("«область действия» самого API-ключа: она задаётся при создании ключа")
+        print("и не меняется ролями аккаунта.")
+        print()
+        print("Что проверить в консоли Yandex Cloud:")
+        print(f"  каталог {folder} → «Сервисные аккаунты» → нужный аккаунт → раздел «API-ключи»")
+        print("  → колонка «Область действия». Если там yc.ai.languageModels.execute —")
+        print("  создайте новый ключ с областью yc.ai.imageGeneration.execute.")
+        print()
+        print("Если область выбирается только одна, держите два ключа:")
+        print("  YANDEX_API_KEY     — для текста")
+        print("  YANDEX_ART_API_KEY — для картинок (скрипт возьмёт его автоматически)")
     else:
         print("Не отвечает ни одна модель. Проверьте статус платёжного аккаунта")
         print("(должен быть ACTIVE или TRIAL_ACTIVE) и правильность ключа.")
@@ -191,7 +227,7 @@ def generate_image(prompt: str, seed: Optional[int] = None, *,
     Сетевые вызовы вынесены в параметры (`post_json`, `get_json`, `sleep`) — так их
     подменяют тесты, и логика проверяется без обращения к платному API.
     """
-    api_key = api_key or os.getenv("YANDEX_API_KEY", "")
+    api_key = api_key or art_api_key()
     folder_id = folder_id or os.getenv("YANDEX_FOLDER_ID", "") or os.getenv("YANDEX_CLOUD_ID", "")
     if not api_key:
         raise YandexArtError("Не задан YANDEX_API_KEY. Положите его в .env — см. .env.example")
