@@ -1,0 +1,6 @@
+streamlit>=1.36
+pdfplumber>=0.11
+openai>=1.40
+python-dotenv>=1.0
+pytest>=8.0
+reportlab>=4.0
