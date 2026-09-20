@@ -1,0 +1,68 @@
+### 1. Status of the two certtaris services
+● taris-cert-web.service - CertTaris Web UI (FastAPI) — norm assistant, web-only
+     Loaded: loaded (/home/stas/.config/systemd/user/taris-cert-web.service; enabled; preset: enabled)
+     Active: active (running) since Tue 2026-09-15 22:38:41 CEST; 4 days ago
+   Main PID: 2361683 (python3)
+      Tasks: 125 (limit: 52523)
+     Memory: 6.7G (high: 7.3G max: 8.0G available: 635.7M peak: 7.3G swap: 1.7G swap peak: 1.7G)
+        CPU: 2h 1min 31.523s
+     CGroup: /user.slice/user-1000.slice/user@1000.service/app.slice/taris-cert-web.service
+             └─2361683 /usr/bin/python3 /home/stas/.taris-cert/bot_web.py
+
+● taris-cert-telegram.service - CertTaris Telegram Bot — norm assistant
+     Loaded: loaded (/home/stas/.config/systemd/user/taris-cert-telegram.service; enabled; preset: enabled)
+     Active: active (running) since Tue 2026-09-15 22:38:58 CEST; 4 days ago
+   Main PID: 2362412 (python3)
+      Tasks: 136 (limit: 52523)
+     Memory: 5.5G (high: 7.3G max: 8.0G available: 1.8G peak: 5.8G)
+        CPU: 38min 33.620s
+     CGroup: /user.slice/user-1000.slice/user@1000.service/app.slice/taris-cert-telegram.service
+             └─2362412 /usr/bin/python3 /home/stas/.taris-cert/telegram_menu_bot.py
+
+### 2. All taris services on this machine
+UNIT                        LOAD   ACTIVE SUB     DESCRIPTION
+taris-cert-eng-web.service  loaded active running CertTaris-ENG Web UI (FastAPI) — RAG/LLM engineering lab, web-only
+taris-cert-telegram.service loaded active running CertTaris Telegram Bot — norm assistant
+taris-cert-web.service      loaded active running CertTaris Web UI (FastAPI) — norm assistant, web-only
+taris-observer.service      loaded active running Taris RAG Observer (idle-time, read-only analysis agent)
+taris-telegram.service      loaded active running Taris Telegram Menu Bot
+taris-tunnel.service        loaded active running Taris SSH reverse tunnel to VPS (supertaris+supertaris2+certtaris+admin)
+taris-web.service           loaded active running Taris Web UI (FastAPI)
+
+Legend: LOAD   → Reflects whether the unit definition was properly loaded.
+        ACTIVE → The high-level unit activation state, i.e. generalization of SUB.
+        SUB    → The low-level unit activation state, values depend on unit type.
+
+7 loaded units listed. Pass --all to see loaded but inactive units, too.
+To show all installed unit files use 'systemctl list-unit-files'.
+
+### 3. Unit files (enabled = starts on boot)
+UNIT FILE                   STATE   PRESET
+taris-cert-eng-web.service  enabled enabled
+taris-cert-telegram.service enabled enabled
+taris-cert-web.service      enabled enabled
+
+3 unit files listed.
+
+### 4. Listening ports of the two services
+LISTEN 0      2048                       0.0.0.0:8082       0.0.0.0:*    users:(("python3",pid=2245,fd=18))        
+LISTEN 0      2048                       0.0.0.0:8081       0.0.0.0:*    users:(("python3",pid=2361683,fd=18))     
+
+### 5. Last log lines, web
+2026-09-20T11:01:32+02:00 SintAItion python3[2361683]: INFO:     127.0.0.1:0 - "GET /certtaris/api/runtime HTTP/1.1" 200 OK
+2026-09-20T11:02:03+02:00 SintAItion python3[2361683]: INFO:     127.0.0.1:0 - "GET /certtaris/api/runtime HTTP/1.1" 200 OK
+2026-09-20T11:02:34+02:00 SintAItion python3[2361683]: INFO:     127.0.0.1:0 - "GET /certtaris/api/runtime HTTP/1.1" 200 OK
+2026-09-20T11:03:05+02:00 SintAItion python3[2361683]: INFO:     127.0.0.1:0 - "GET /certtaris/api/runtime HTTP/1.1" 200 OK
+2026-09-20T11:03:36+02:00 SintAItion python3[2361683]: INFO:     127.0.0.1:0 - "GET /certtaris/api/runtime HTTP/1.1" 200 OK
+2026-09-20T11:04:07+02:00 SintAItion python3[2361683]: INFO:     127.0.0.1:0 - "GET /certtaris/api/runtime HTTP/1.1" 200 OK
+
+### 6. Last log lines, telegram bot
+2026-09-20T10:47:17+02:00 SintAItion python3[2362412]: 2026-09-20 10:47:17,456 [INFO] [RAG] strategy=route(hybrid+rerank) fts5=152 vec=153 mcp=0 chunks=19 chars=11668 latency=18064ms
+2026-09-20T10:47:17+02:00 SintAItion python3[2362412]: 2026-09-20 10:47:17,465 [INFO] [Voice] LLM call start: provider=openai text_len=69 history=2
+2026-09-20T10:47:20+02:00 SintAItion python3[2362412]: 2026-09-20 10:47:20,359 [INFO] [Voice] LLM done: 2.9s resp_len=1771
+2026-09-20T10:47:22+02:00 SintAItion python3[2362412]: 2026-09-20 10:47:22,238 [INFO] [Voice] TTS start: resp_chars=1771
+2026-09-20T10:47:23+02:00 SintAItion python3[2362412]: 2026-09-20 10:47:23,749 [INFO] [Voice] TTS done: 1.5s ogg_kb=95
+2026-09-20T10:47:24+02:00 SintAItion python3[2362412]: 2026-09-20 10:47:24,213 [INFO] [Voice] pipeline done: total=8.7s Download=0.2s Convert=0.1s STT=4.0s LLM=2.9s TTS=1.5s
+
+### 7. Machine uptime
+ 11:04:37 up 5 days,  3:58,  2 users,  load average: 0.31, 3.73, 3.37
