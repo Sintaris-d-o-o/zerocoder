@@ -1,13 +1,17 @@
-"""Загрузка цепочки в n8n через его REST API (задание 10.5).
+"""Загрузка цепочки 10.6 в n8n через его REST API.
 
-Делает то же, что руками в редакторе: заводит ключ OpenAI, создаёт или обновляет
-рабочий процесс, привязывает к нему ключ и включает его.
+Делает то же, что руками в редакторе, но без кликов:
+  • заводит ключ OpenAI;
+  • заводит учётные данные Header Auth (`Authorization: Bearer <токен>`) для защиты вебхука;
+  • создаёт или обновляет рабочий процесс, привязывает к узлам и то и другое;
+  • включает процесс.
 
 Настройки берутся из окружения или .env рядом со скриптом:
     N8N_BASE_URL       адрес n8n, по умолчанию http://127.0.0.1:5681
     N8N_OWNER_EMAIL    почта владельца
     N8N_OWNER_PASSWORD пароль владельца
     OPENAI_API_KEY     ключ, который пропишется в учётные данные n8n
+    N8N_WEBHOOK_TOKEN  токен для заголовка Authorization
 
 Запуск:
     python deploy_workflow.py             # загрузить и включить
@@ -25,7 +29,8 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 BASE = os.getenv("N8N_BASE_URL", "http://127.0.0.1:5681").rstrip("/")
-CRED_NAME = "OpenAI — Sintaris"
+OPENAI_CRED_NAME = "OpenAI — Sintaris"
+HEADER_CRED_NAME = "Zerocoder 10.6 — Bearer"
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
@@ -67,30 +72,58 @@ class Client:
             raise SystemExit(f"Не удалось войти в n8n ({code}). Проверьте логин и пароль.")
 
 
-def ensure_credential(cli: Client, api_key: str) -> dict:
+def existing_credentials(cli: Client) -> list[dict]:
     code, res = cli.call("/rest/credentials")
-    items = res.get("data") or [] if isinstance(res, dict) else []
-    found = next((c for c in items if c.get("type") == "openAiApi"), None)
+    return (res.get("data") or []) if isinstance(res, dict) else []
+
+
+def ensure_openai(cli: Client, api_key: str) -> dict:
+    found = next((c for c in existing_credentials(cli) if c.get("type") == "openAiApi"), None)
     if found:
         print(f"ключ OpenAI уже заведён: {found['name']}")
         return found
     code, res = cli.call("/rest/credentials",
-                         {"name": CRED_NAME, "type": "openAiApi", "data": {"apiKey": api_key}})
+                         {"name": OPENAI_CRED_NAME, "type": "openAiApi",
+                          "data": {"apiKey": api_key}})
     if code >= 300:
         raise SystemExit(f"Не создать учётные данные OpenAI: {code} {res}")
-    print(f"создан ключ OpenAI: {CRED_NAME}")
+    print(f"создан ключ OpenAI: {OPENAI_CRED_NAME}")
     return res["data"]
 
 
-def upsert_workflow(cli: Client, wf: dict, cred: dict) -> str:
+def ensure_header_auth(cli: Client, token: str) -> dict:
+    """Учётные данные для защиты вебхука.
+
+    n8n сравнивает заголовок целиком, поэтому в значение кладётся строка
+    вместе со словом Bearer — ровно то, что пришлёт клиент.
+    """
+    found = next((c for c in existing_credentials(cli)
+                  if c.get("name") == HEADER_CRED_NAME), None)
+    if found:
+        print(f"защита вебхука уже заведена: {found['name']}")
+        return found
+    code, res = cli.call("/rest/credentials",
+                         {"name": HEADER_CRED_NAME, "type": "httpHeaderAuth",
+                          "data": {"name": "Authorization", "value": f"Bearer {token}"}})
+    if code >= 300:
+        raise SystemExit(f"Не создать учётные данные Header Auth: {code} {res}")
+    print(f"создана защита вебхука: {HEADER_CRED_NAME}")
+    return res["data"]
+
+
+def upsert_workflow(cli: Client, wf: dict, openai_cred: dict, header_cred: dict) -> str:
     for node in wf["nodes"]:
-        # ключ нужен и узлам модели, и обычному HTTP-узлу, который сам ходит в API
-        # OpenAI с предустановленным типом учётных данных
+        # ключ OpenAI нужен и узлам модели, и обычному HTTP-узлу, который сам ходит
+        # в /v1/images/generations с предустановленным типом учётных данных
         uses_openai = (node["type"].endswith("langchain.openAi")
                        or node["type"].endswith("base.openAi")
                        or node["parameters"].get("nodeCredentialType") == "openAiApi")
         if uses_openai:
-            node["credentials"] = {"openAiApi": {"id": cred["id"], "name": cred["name"]}}
+            node["credentials"] = {"openAiApi": {"id": openai_cred["id"],
+                                                 "name": openai_cred["name"]}}
+        if node["type"].endswith("base.webhook"):
+            node["credentials"] = {"httpHeaderAuth": {"id": header_cred["id"],
+                                                      "name": header_cred["name"]}}
 
     code, res = cli.call("/rest/workflows")
     data = res.get("data") if isinstance(res, dict) else []
@@ -135,17 +168,19 @@ def main(argv=None) -> int:
     email = os.getenv("N8N_OWNER_EMAIL")
     password = os.getenv("N8N_OWNER_PASSWORD")
     api_key = os.getenv("OPENAI_API_KEY")
-    if not (email and password and api_key):
-        raise SystemExit("Нужны N8N_OWNER_EMAIL, N8N_OWNER_PASSWORD и OPENAI_API_KEY "
-                         "в окружении или .env")
+    token = os.getenv("N8N_WEBHOOK_TOKEN")
+    if not (email and password and api_key and token):
+        raise SystemExit("Нужны N8N_OWNER_EMAIL, N8N_OWNER_PASSWORD, OPENAI_API_KEY "
+                         "и N8N_WEBHOOK_TOKEN в окружении или .env")
 
     wf = json.loads(Path(args.file).read_text(encoding="utf-8"))
     cli = Client(BASE)
     cli.login(email, password)
     print(f"вошли в n8n: {BASE}")
 
-    cred = ensure_credential(cli, api_key)
-    wf_id = upsert_workflow(cli, wf, cred)
+    openai_cred = ensure_openai(cli, api_key)
+    header_cred = ensure_header_auth(cli, token)
+    wf_id = upsert_workflow(cli, wf, openai_cred, header_cred)
 
     if args.off:
         print("цепочка не включена (--off)")
@@ -154,6 +189,7 @@ def main(argv=None) -> int:
 
     webhook = next(n for n in wf["nodes"] if n["type"].endswith("webhook"))
     print(f"\nадрес вебхука: {BASE}/webhook/{webhook['parameters']['path']}")
+    print("защита: заголовок Authorization: Bearer <токен из N8N_WEBHOOK_TOKEN>")
     return 0
 
 

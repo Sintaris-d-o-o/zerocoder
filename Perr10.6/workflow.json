@@ -1,0 +1,436 @@
+{
+  "name": "Zerocoder 10.6 — Автопостинг с картинкой",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "zerocoder-autopost-image",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -520,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Тема приходит в теле POST-запроса параметром topic.\n// Проверяем её здесь: пустой запрос иначе дошёл бы до модели и стоил денег впустую.\nconst body = $input.first().json.body ?? $input.first().json;\nconst topic = (body.topic ?? '').toString().trim();\nif (!topic) {\n  throw new Error('В запросе нет параметра topic');\n}\nconst style = (body.style ?? '').toString().trim();\nconst task = style\n  ? `Напиши пост для Telegram-канала на тему: ${topic}. Стиль: ${style}.`\n  : `Напиши пост для Telegram-канала на тему: ${topic}.`;\nreturn [{ json: { topic, style, task } }];"
+      },
+      "id": "code-1",
+      "name": "Prepare Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -300,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Ты контент-менеджер компании, которая помогает производителям медицинских изделий проходить сертификацию по MDR и IVDR. Пиши по-русски, коротко и по делу, без канцелярита. Структура: цепляющий первый абзац, два-три смысловых блока, вывод и вопрос читателю. Формат — HTML для Telegram, разрешены только теги <b>, <i>, <code>, <a>. Уложись в 900 символов: пост пойдёт подписью к картинке, а Telegram обрезает подпись на 1024 символах."
+            },
+            {
+              "content": "={{ $json.task }}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.7,
+          "maxTokens": 400,
+          "simplify": false
+        }
+      },
+      "id": "ai-text",
+      "name": "AI — текст поста",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        -80,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Ответ модели лежит во вложенной структуре — добираемся по индексу [0].\nconst out = $input.first().json;\nlet text = out?.choices?.[0]?.message?.content\n        ?? out?.message?.content\n        ?? '';\ntext = text.toString().trim();\nif (!text) {\n  throw new Error('Модель вернула пустой текст: ' + JSON.stringify(out).slice(0, 300));\n}\n// У обычного сообщения Telegram предел 4096 знаков, у подписи к фото — 1024.\n// Поэтому меряем дважды: сам текст и отдельно пригодность его как подписи.\nconst TG_TEXT_LIMIT = 4096;\nconst TG_CAPTION_LIMIT = 1024;\nif (text.length > TG_TEXT_LIMIT - 96) { text = text.slice(0, TG_TEXT_LIMIT - 99) + '...'; }\nconst fitsCaption = text.length <= TG_CAPTION_LIMIT;\n// Не поместился — фото уходит без подписи, а текст следом отдельным сообщением.\nconst caption = fitsCaption ? text : '';\nconst topic = $('Prepare Prompt').first().json.topic;\nreturn [{ json: { topic, text, caption, needsFollowup: !fitsCaption, length: text.length } }];"
+      },
+      "id": "code-2",
+      "name": "Parse Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        140,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Ты арт-директор. По тексту поста придумай задание для генератора изображений. Отвечай ТОЛЬКО английским описанием картинки, одной строкой, без кавычек и пояснений. Стиль: minimal flat vector illustration, clean, professional, blue and white palette, no text, no letters, no logos. Картинка иллюстрирует смысл поста, а не повторяет его буквально."
+            },
+            {
+              "content": "={{ $json.text }}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.8,
+          "maxTokens": 120,
+          "simplify": false
+        }
+      },
+      "id": "ai-imgprompt",
+      "name": "AI — промпт картинки",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        360,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Модели рисования обрезают промпт (у dall-e-3 предел 1000 знаков),\n// поэтому задание художнику укорачиваем заранее: лучше короткий бриф,\n// чем ошибка 400 после того, как текст поста уже оплачен.\nconst IMAGE_PROMPT_LIMIT = 900;\nconst out = $input.first().json;\nlet prompt = (out?.choices?.[0]?.message?.content ?? out?.message?.content ?? '')\n  .toString().trim().replace(/^[\"«']+|[\"»']+$/g, '');\nif (!prompt) {\n  // Модель промолчала — рисуем хотя бы по теме поста, а не падаем.\n  prompt = `minimal flat vector illustration about ${$('Prepare Prompt').first().json.topic},`\n         + ' clean, professional, blue and white palette, no text';\n}\nif (prompt.length > IMAGE_PROMPT_LIMIT) { prompt = prompt.slice(0, IMAGE_PROMPT_LIMIT); }\nreturn [{ json: { imagePrompt: prompt, imagePromptLength: prompt.length } }];"
+      },
+      "id": "code-3",
+      "name": "Prepare Image Brief",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        580,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/images/generations",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  model: 'gpt-image-1-mini',\n  prompt: $json.imagePrompt,\n  size: '1024x1024',\n  quality: 'low',\n  n: 1\n}) }}",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "id": "img-1",
+      "name": "Generate Image",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        800,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "toBinary",
+        "sourceProperty": "data[0].b64_json",
+        "binaryPropertyName": "data",
+        "options": {
+          "fileName": "post.png",
+          "mimeType": "image/png",
+          "dataIsBase64": true
+        }
+      },
+      "id": "bin-1",
+      "name": "Image to Binary",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        910,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendPhoto",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "={{ $env.TELEGRAM_CHANNEL_ID }}"
+            },
+            {
+              "name": "caption",
+              "value": "={{ $('Parse Response').first().json.caption }}"
+            },
+            {
+              "name": "parse_mode",
+              "value": "HTML"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "photo",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "http-photo",
+      "name": "Send Photo — Telegram API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1020,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cond-followup",
+              "leftValue": "={{ $('Parse Response').first().json.needsFollowup }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-1",
+      "name": "Текст не поместился в подпись?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  chat_id: $env.TELEGRAM_CHANNEL_ID,\n  text: $('Parse Response').first().json.text,\n  parse_mode: 'HTML',\n  disable_web_page_preview: true\n}) }}",
+        "options": {
+          "timeout": 20000
+        }
+      },
+      "id": "http-text",
+      "name": "Send Text — Telegram API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1460,
+        -140
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Собираем понятный ответ вызывающему: опубликовано или нет, и ссылку на пост.\nconst tg = $('Send Photo — Telegram API').first().json;\nconst parsed = $('Parse Response').first().json;\nconst brief = $('Prepare Image Brief').first().json;\nconst ok = tg?.ok === true;\nconst msg = tg?.result ?? {};\nconst chat = msg?.chat ?? {};\nconst url = chat.username && msg.message_id\n  ? `https://t.me/${chat.username}/${msg.message_id}`\n  : null;\nreturn [{ json: {\n  ok,\n  published: ok,\n  topic: parsed.topic,\n  length: parsed.length,\n  with_image: ok && Array.isArray(msg.photo) && msg.photo.length > 0,\n  caption_used: parsed.caption.length > 0,\n  text_sent_separately: parsed.needsFollowup,\n  image_prompt_length: brief.imagePromptLength,\n  message_id: msg.message_id ?? null,\n  channel: chat.title ?? chat.username ?? null,\n  url,\n  error: ok ? null : (tg?.description ?? 'Telegram отклонил публикацию'),\n} }];"
+      },
+      "id": "code-4",
+      "name": "Build Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "resp-1",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1900,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prepare Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Prompt": {
+      "main": [
+        [
+          {
+            "node": "AI — текст поста",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI — текст поста": {
+      "main": [
+        [
+          {
+            "node": "Parse Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Response": {
+      "main": [
+        [
+          {
+            "node": "AI — промпт картинки",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI — промпт картинки": {
+      "main": [
+        [
+          {
+            "node": "Prepare Image Brief",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Image Brief": {
+      "main": [
+        [
+          {
+            "node": "Generate Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Image": {
+      "main": [
+        [
+          {
+            "node": "Image to Binary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Image to Binary": {
+      "main": [
+        [
+          {
+            "node": "Send Photo — Telegram API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Photo — Telegram API": {
+      "main": [
+        [
+          {
+            "node": "Текст не поместился в подпись?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Text — Telegram API": {
+      "main": [
+        [
+          {
+            "node": "Build Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Result": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Текст не поместился в подпись?": {
+      "main": [
+        [
+          {
+            "node": "Send Text — Telegram API",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}
