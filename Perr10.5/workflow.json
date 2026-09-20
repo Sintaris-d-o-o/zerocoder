@@ -36,7 +36,8 @@
         "modelId": {
           "__rl": true,
           "value": "gpt-4o-mini",
-          "mode": "list"
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
         },
         "messages": {
           "values": [
@@ -52,13 +53,14 @@
         },
         "options": {
           "temperature": 0.7,
-          "maxTokens": 1200
+          "maxTokens": 1200,
+          "simplify": false
         }
       },
       "id": "ai-1",
       "name": "AI — Message a model",
-      "type": "n8n-nodes-base.openAi",
-      "typeVersion": 1.1,
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
       "position": [
         180,
         0

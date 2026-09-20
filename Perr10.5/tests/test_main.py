@@ -163,7 +163,7 @@ def test_workflow_file_matches_the_task():
                     .read_text(encoding="utf-8"))
     types = [n["type"] for n in wf["nodes"]]
     assert "n8n-nodes-base.webhook" in types          # вебхук
-    assert "n8n-nodes-base.openAi" in types           # модель
+    assert "@n8n/n8n-nodes-langchain.openAi" in types  # модель
     assert "n8n-nodes-base.httpRequest" in types      # запрос к Telegram API
 
     webhook = next(n for n in wf["nodes"] if n["type"].endswith("webhook"))
@@ -204,14 +204,20 @@ def test_parse_node_uses_index_zero():
 
 # --------------------------------------------------------------- совместимость версий
 
-# Версии узлов, которые поддерживает установленный n8n (проверено на 2.17.7)
-# и которые уже используются в рабочих процессах Taris.
+# Версии узлов, которые поддерживает установленный n8n (проверено на 2.39.8
+# командой grep по описаниям узлов внутри контейнера) и которые уже используются
+# в рабочих процессах Taris.
 KNOWN_GOOD_VERSIONS = {
     "n8n-nodes-base.webhook": {2},
     "n8n-nodes-base.code": {2},
-    "n8n-nodes-base.openAi": {1, 1.1},        # узел поддерживает только эти две
     "n8n-nodes-base.httpRequest": {4, 4.1, 4.2},
     "n8n-nodes-base.respondToWebhook": {1, 1.1},
+    # «Message a Model» — это узел из набора langchain, а не старый n8n-nodes-base.openAi.
+    # Установленный n8n знает версии 1…1.8 и 2…2.3, по умолчанию ставит 2.3.
+    # Берём 1.8: она есть и в новом n8n, и в более старых, где серии 2.x ещё нет.
+    "@n8n/n8n-nodes-langchain.openAi": {1, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8},
+    # старый узел — оставлен в таблице, потому что он используется в Taris
+    "n8n-nodes-base.openAi": {1, 1.1},
 }
 
 
@@ -231,11 +237,30 @@ def test_node_versions_are_supported_by_installed_n8n():
             f"а установленный n8n знает только {sorted(allowed)}")
 
 
-def test_versions_match_the_taris_workflows():
-    """Наша цепочка использует те же версии узлов, что и рабочие процессы Taris.
+def test_model_node_is_not_the_legacy_completion_node():
+    """Узел n8n-nodes-base.openAi — не тот, который просит задание.
 
-    Если продукт переедет на новую версию n8n, ломаться будут обе разом,
-    а не по очереди — и чинить придётся один раз.
+    У него версии 1 и 1.1, он существует и импортируется без ошибок, но по умолчанию
+    обращается к старому endpoint завершения текста: системная роль и заданный промпт
+    игнорируются, а на выходе приходит посторонний текст вместо ответа на тему.
+    Проверено на живом запуске: модель вернула рекламный отрывок про «DAILY DEALS».
+    Операция «Message a Model» живёт в узле @n8n/n8n-nodes-langchain.openAi.
+    """
+    wf = json.loads((Path(__file__).resolve().parents[1] / "workflow.json")
+                    .read_text(encoding="utf-8"))
+    model = next(n for n in wf["nodes"] if n["name"] == "AI — Message a model")
+    assert model["type"] == "@n8n/n8n-nodes-langchain.openAi"
+    assert model["parameters"]["options"]["simplify"] is False, (
+        "без simplify=False узел отдаёт уже разобранный текст, "
+        "и обращаться к choices[0], как требует задание, будет не к чему")
+
+
+def test_versions_match_the_taris_workflows():
+    """Общие с Taris узлы должны стоять тех же версий.
+
+    Если продукт переедет на новую версию n8n, ломаться будут обе цепочки разом,
+    а не по очереди — и чинить придётся один раз. Узел модели намеренно другой:
+    в Taris он исторический (n8n-nodes-base.openAi), у нас — тот, что требует урок.
     """
     wf = json.loads((Path(__file__).resolve().parents[1] / "workflow.json")
                     .read_text(encoding="utf-8"))
@@ -243,7 +268,6 @@ def test_versions_match_the_taris_workflows():
     taris = {                      # из src/n8n/workflows/Taris - Content Generate.json
         "n8n-nodes-base.webhook": 2,
         "n8n-nodes-base.code": 2,
-        "n8n-nodes-base.openAi": 1.1,
         "n8n-nodes-base.respondToWebhook": 1,
     }
     for node_type, version in taris.items():
