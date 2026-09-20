@@ -1,0 +1,17 @@
+{
+  "prompt": "A sterile medical device laboratory. A gloved hand places a small electronic device onto a testing stand; indicator lights turn from amber to green. Slow push-in, crisp reflections on stainless steel, cool teal lighting, photorealistic, no text.",
+  "video_id": "da15bfd3-6062-4ed8-8d51-9ab1231c37fd",
+  "provider": "routerai",
+  "model": "google/veo-3.1-lite",
+  "seconds": 4,
+  "elapsed_s": 34.6,
+  "polls": 6,
+  "statuses": [
+    "pending",
+    "completed"
+  ],
+  "cost_credits": 21.89135,
+  "file": "20260920-1007_lab.mp4",
+  "size_mb": 0.98,
+  "generated_at": "2026-09-20T10:07:52"
+}

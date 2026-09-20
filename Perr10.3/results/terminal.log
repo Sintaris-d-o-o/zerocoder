@@ -1,0 +1,12 @@
+Сервис: routerai, модель: google/veo-3.1-lite
+Длительность: 4 с, 16:9, 720p
+Промпт: A sterile medical device laboratory. A gloved hand places a small electronic device onto a testing stand; indicator lights turn from amber to green. Slow push-in, crisp reflections on stainless steel, cool teal lighting, photorealistic, no text.
+
+  [███████·····················]  25%  pending          0 с  [███████·····················]  25%  pending          7 с  [███████·····················]  25%  pending         12 с  [███████·····················]  25%  pending         18 с  [███████·····················]  25%  pending         23 с  [███████·····················]  25%  pending         28 с  [████████████████████████████] 100%  completed       35 с
+
+Готово за 34.6 с, проверок статуса: 6
+Путь статусов: pending → completed
+Стоимость: 21.9 кредитов
+Видео сохранено: results\20260920-1007_lab.mp4 (1.0 МБ)
+Параметры прогона: results\20260920-1007_lab.json
+Остаток на счету: 43.8 кредитов

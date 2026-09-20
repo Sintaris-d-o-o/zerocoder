@@ -1,18 +1,20 @@
 """Проверка статуса генерации видео — файл `test.py` из задания 10.3.
 
-Задание просит «проверить статус через test.py». Скрипт делает три вещи:
+Задание просит «проверить статус через test.py». Скрипт делает четыре вещи:
 
-    python test.py                 — проверяет доступ: виден ли ключ, отвечает ли сервис;
-    python test.py <id видео>      — показывает статус конкретной задачи;
-    python test.py --watch <id>    — следит за задачей до завершения и скачивает результат;
-    python test.py --list          — показывает последние задачи сервиса.
+    python test.py                 — проверяет доступ и остаток на счету;
+    python test.py <id задачи>     — показывает статус конкретной задачи;
+    python test.py --watch <id>    — следит за задачей до конца и скачивает результат;
+    python test.py --download <id> — скачивает уже готовое видео.
 
-Отдельный файл нужен потому, что генерация долгая: запустили в одном окне, а проверять
-статус и забирать готовый файл удобно отдельной командой, не перезапуская генерацию.
+Отдельный файл нужен потому, что генерация долгая и платная: запустили в одном окне, а
+проверять статус и забирать готовый файл удобно отдельной командой, не запуская генерацию
+заново.
 """
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 import time
 from datetime import datetime
@@ -28,53 +30,40 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
 
-def check_access(client=None) -> int:
-    """Проверяет, что ключ на месте и сервис отвечает. Денег не тратит."""
-    import os
-    key = os.getenv("PROXYAPI_KEY")
-    base = os.getenv("PROXYAPI_BASE_URL", vg.DEFAULT_BASE_URL)
-    print("Проверка доступа к сервису")
-    print(f"  адрес:  {base}")
-    print(f"  ключ:   {'задан, ' + str(len(key)) + ' символов' if key else 'НЕ ЗАДАН — добавьте PROXYAPI_KEY в .env'}")
-    if not key:
-        return 2
-    try:
-        client = client or vg.make_client()
-        jobs = client.videos.list()
-        items = list(getattr(jobs, "data", []) or [])
-        print(f"  ответ:  сервис доступен, задач в истории: {len(items)}")
-        return 0
-    except Exception as exc:  # noqa: BLE001
-        print(f"  ответ:  {vg._explain(exc)}", file=sys.stderr)
-        return 1
+def job_url(video_id: str) -> str:
+    return f"{vg.ROUTERAI_BASE_URL}/videos/{video_id}"
 
 
-def show_status(video_id: str, client=None) -> int:
-    client = client or vg.make_client()
+def fetch(video_id: str, request=vg._request, key: Optional[str] = None) -> dict:
+    return request(job_url(video_id), key or vg.api_key("routerai"))
+
+
+def show_status(video_id: str, request=vg._request, key: Optional[str] = None) -> int:
     try:
-        job = client.videos.retrieve(video_id)
-    except Exception as exc:  # noqa: BLE001
-        print(f"ОШИБКА: {vg._explain(exc)}", file=sys.stderr)
+        data = fetch(video_id, request, key)
+    except vg.VideoError as exc:
+        print(f"ОШИБКА: {exc}", file=sys.stderr)
         return 1
-    status = vg._status_of(job)
-    pct = vg._progress_of(job)
+    status = str(data.get("status", "")).lower()
     print(f"Задача {video_id}")
-    print(f"  статус:   {status}")
-    if pct is not None:
-        print(f"  прогресс: {pct} %")
-    for attr in ("model", "seconds", "size", "created_at"):
-        value = getattr(job, attr, None)
-        if value is not None:
-            print(f"  {attr}: {value}")
-    if status in vg.DONE_STATUSES:
-        print("  видео готово — скачать: python test.py --watch " + video_id)
+    print(f"  статус: {status}")
+    cost = (data.get("usage") or {}).get("cost")
+    if cost is not None:
+        print(f"  стоимость: {cost} кредитов")
+    urls = data.get("unsigned_urls") or []
+    if urls:
+        print(f"  файл готов, ссылок: {len(urls)}")
+        print(f"  скачать: python test.py --download {video_id}")
+    elif status in vg.RUNNING_STATUSES:
+        print("  ещё генерируется — следить: python test.py --watch " + video_id)
     return 0
 
 
-def watch(video_id: str, out_dir: Path, client=None, interval: float = vg.POLL_INTERVAL_S,
-          timeout: float = vg.POLL_TIMEOUT_S, sleep=time.sleep) -> int:
+def watch(video_id: str, out_dir: Path, request=vg._request, key: Optional[str] = None,
+          interval: float = vg.POLL_INTERVAL_S, timeout: float = vg.POLL_TIMEOUT_S,
+          sleep=time.sleep, opener=None) -> int:
     """Следит за задачей до завершения и скачивает готовый файл."""
-    client = client or vg.make_client()
+    key = key or vg.api_key("routerai")
     started = time.perf_counter()
     statuses: list[str] = []
     while True:
@@ -83,14 +72,14 @@ def watch(video_id: str, out_dir: Path, client=None, interval: float = vg.POLL_I
             print(f"\nЗадача не завершилась за {timeout:.0f} с", file=sys.stderr)
             return 1
         try:
-            job = client.videos.retrieve(video_id)
-        except Exception as exc:  # noqa: BLE001
-            print(f"\nОШИБКА: {vg._explain(exc)}", file=sys.stderr)
+            data = fetch(video_id, request, key)
+        except vg.VideoError as exc:
+            print(f"\nОШИБКА: {exc}", file=sys.stderr)
             return 1
-        status = vg._status_of(job)
+        status = str(data.get("status", "")).lower()
         if not statuses or statuses[-1] != status:
             statuses.append(status)
-        print("\r" + vg.render_bar(status, vg._progress_of(job), elapsed), end="", flush=True)
+        print("\r" + vg.render_bar(status, elapsed), end="", flush=True)
         if status in vg.DONE_STATUSES:
             print()
             break
@@ -99,15 +88,24 @@ def watch(video_id: str, out_dir: Path, client=None, interval: float = vg.POLL_I
             return 1
         sleep(interval)
 
-    result = vg.VideoResult(prompt="(получено через test.py)", video_id=video_id,
-                            seconds=str(getattr(job, "seconds", "") or ""),
-                            size=str(getattr(job, "size", "") or ""),
-                            model=str(getattr(job, "model", "") or ""),
-                            elapsed_s=round(time.perf_counter() - started, 1),
-                            polls=len(statuses), statuses=statuses)
+    urls = data.get("unsigned_urls") or []
+    if not urls:
+        print("Задача готова, но ссылки на файл нет", file=sys.stderr)
+        return 1
+
+    result = vg.VideoResult(
+        prompt="(получено через test.py)", video_id=video_id,
+        seconds=int(data.get("duration") or 0), model=str(data.get("model") or ""),
+        provider="routerai", elapsed_s=round(time.perf_counter() - started, 1),
+        polls=len(statuses), statuses=statuses, download_url=urls[0],
+        cost=(data.get("usage") or {}).get("cost"))
+
     stamp = datetime.now().strftime("%Y%m%d-%H%M")
     try:
-        path = vg.download_video(result, out_dir, f"{stamp}_{video_id[:8]}", client=client)
+        kwargs = {"key": key}
+        if opener is not None:
+            kwargs["opener"] = opener
+        path = vg.download_video(result, out_dir, f"{stamp}_{video_id[:8]}", **kwargs)
     except vg.VideoError as exc:
         print(f"ОШИБКА при скачивании: {exc}", file=sys.stderr)
         return 1
@@ -117,38 +115,52 @@ def watch(video_id: str, out_dir: Path, client=None, interval: float = vg.POLL_I
     return 0
 
 
-def list_jobs(client=None, limit: int = 10) -> int:
-    client = client or vg.make_client()
+def download(video_id: str, out_dir: Path, request=vg._request, key: Optional[str] = None,
+             opener=None) -> int:
+    """Скачивает уже готовое видео, не дожидаясь ничего."""
+    key = key or vg.api_key("routerai")
     try:
-        jobs = client.videos.list()
-    except Exception as exc:  # noqa: BLE001
-        print(f"ОШИБКА: {vg._explain(exc)}", file=sys.stderr)
+        data = fetch(video_id, request, key)
+    except vg.VideoError as exc:
+        print(f"ОШИБКА: {exc}", file=sys.stderr)
         return 1
-    items = list(getattr(jobs, "data", []) or [])[:limit]
-    if not items:
-        print("Задач пока нет.")
-        return 0
-    print(f"{'идентификатор':<40} {'статус':<12} модель")
-    for job in items:
-        print(f"{getattr(job, 'id', '?'):<40} {vg._status_of(job):<12} {getattr(job, 'model', '?')}")
+    urls = data.get("unsigned_urls") or []
+    if not urls:
+        print(f"Видео ещё не готово, статус «{data.get('status')}»", file=sys.stderr)
+        return 1
+    result = vg.VideoResult(prompt="(скачано через test.py)", video_id=video_id, seconds=0,
+                            model=str(data.get("model") or ""), provider="routerai",
+                            elapsed_s=0.0, polls=0, statuses=[str(data.get("status"))],
+                            download_url=urls[0], cost=(data.get("usage") or {}).get("cost"))
+    stamp = datetime.now().strftime("%Y%m%d-%H%M")
+    kwargs = {"key": key}
+    if opener is not None:
+        kwargs["opener"] = opener
+    try:
+        path = vg.download_video(result, out_dir, f"{stamp}_{video_id[:8]}", **kwargs)
+    except vg.VideoError as exc:
+        print(f"ОШИБКА при скачивании: {exc}", file=sys.stderr)
+        return 1
+    vg.save_report(result, out_dir)
+    print(f"Видео сохранено: {path} ({result.size_mb:.1f} МБ)")
     return 0
 
 
 def main(argv: Optional[list[str]] = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("video_id", nargs="?", help="идентификатор задачи генерации")
-    ap.add_argument("--watch", metavar="ID", help="следить за задачей до конца и скачать результат")
-    ap.add_argument("--list", action="store_true", help="показать последние задачи")
+    ap.add_argument("--watch", metavar="ID", help="следить за задачей и скачать результат")
+    ap.add_argument("--download", metavar="ID", help="скачать уже готовое видео")
     ap.add_argument("--out", default="results", help="папка для скачанного видео")
     args = ap.parse_args(argv)
 
-    if args.list:
-        return list_jobs()
     if args.watch:
         return watch(args.watch, HERE / args.out)
+    if args.download:
+        return download(args.download, HERE / args.out)
     if args.video_id:
         return show_status(args.video_id)
-    return check_access()
+    return vg.check_access()
 
 
 if __name__ == "__main__":

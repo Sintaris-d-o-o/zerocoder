@@ -1,4 +1,9 @@
-"""Тесты генератора видео без обращения к платному сервису (задание 10.3)."""
+"""Тесты генератора видео без обращения к платному сервису (задание 10.3).
+
+Генерация одного ролика стоит заметных денег, поэтому вся логика проверяется на
+подменённых сетевых вызовах: сборка запроса, опрос статуса, скачивание, обработка ошибок.
+"""
+import json
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -11,153 +16,207 @@ sys.path.insert(0, str(HERE))
 import video_generator as vg  # noqa: E402
 import test as check          # noqa: E402  — файл test.py из задания
 
+MP4 = b"\x00\x00\x00 ftypisom" + b"\x00" * 64      # правдоподобное начало MP4-файла
 
-class FakeVideos:
-    """Подменяет client.videos: выдаёт заданную последовательность статусов."""
 
-    def __init__(self, statuses=("queued", "in_progress", "completed"), content=b"\x00\x00\x00\x18ftypmp42",
-                 fail_on_create=None, video_id="vid_abc123"):
+class FakeApi:
+    """Подменяет сеть RouterAI: создание задачи и последовательность статусов."""
+
+    def __init__(self, statuses=("pending", "processing", "completed"), video_id="vid-1",
+                 fail_create=None, urls=None, cost=43.78, credits_left=109.5):
         self.statuses = list(statuses)
-        self.content = content
-        self.fail_on_create = fail_on_create
         self.video_id = video_id
+        self.fail_create = fail_create
+        self.urls = urls if urls is not None else [f"https://routerai.ru/api/v1/videos/{video_id}/content?index=0"]
+        self.cost = cost
+        self.credits_left = credits_left
         self.created: list[dict] = []
-        self.retrieves = 0
-        self.downloads = 0
+        self.polls = 0
 
-    def create(self, **kwargs):
-        if self.fail_on_create:
-            raise self.fail_on_create
-        self.created.append(kwargs)
-        return SimpleNamespace(id=self.video_id, status=self.statuses[0], progress=0)
-
-    def retrieve(self, video_id):
-        self.retrieves += 1
-        idx = min(self.retrieves, len(self.statuses) - 1)
+    def __call__(self, url, key, payload=None, method="GET", timeout=60):
+        if url.endswith("/credits"):
+            return {"data": {"credits": self.credits_left}}
+        if method == "POST":
+            if self.fail_create:
+                raise self.fail_create
+            self.created.append(payload)
+            return {"id": self.video_id, "status": self.statuses[0],
+                    "polling_url": f"{vg.ROUTERAI_BASE_URL}/videos/{self.video_id}"}
+        idx = min(self.polls + 1, len(self.statuses) - 1)
+        self.polls += 1
         status = self.statuses[idx]
-        pct = 100 if status in vg.DONE_STATUSES else idx * 40
-        return SimpleNamespace(id=video_id, status=status, progress=pct,
-                               model="sora-2", seconds="4", size="1280x720")
-
-    def download_content(self, video_id):
-        self.downloads += 1
-        return SimpleNamespace(read=lambda: self.content)
-
-    def list(self):
-        return SimpleNamespace(data=[SimpleNamespace(id=self.video_id, status="completed", model="sora-2")])
+        data = {"id": self.video_id, "status": status}
+        if status in vg.DONE_STATUSES:
+            data["unsigned_urls"] = self.urls
+            data["usage"] = {"cost": self.cost}
+        return data
 
 
-def fake_client(**kw):
-    return SimpleNamespace(videos=FakeVideos(**kw))
+def fake_opener(data=MP4):
+    def opener(req, timeout=600):
+        return SimpleNamespace(read=lambda: data)
+    return opener
 
 
-def run(client, prompt="test prompt", **kw):
+@pytest.fixture()
+def creds(monkeypatch):
+    monkeypatch.setenv("ROUTERAIRU_API_KEY", "sk-test")
+    monkeypatch.delenv("PROXYAPI_KEY", raising=False)
+    monkeypatch.delenv("VIDEO_PROVIDER", raising=False)
+    monkeypatch.delenv("VIDEO_MODEL", raising=False)
+
+
+def run(api, prompt="тестовый промпт", **kw):
     kw.setdefault("poll_interval_s", 0)
-    return vg.generate_video(prompt, client=client, sleep=lambda s: None, **kw)
+    return vg.generate_video(prompt, request=api, sleep=lambda s: None, **kw)
+
+
+# --------------------------------------------------------------- выбор сервиса
+
+def test_provider_follows_the_key_in_env(monkeypatch):
+    monkeypatch.delenv("VIDEO_PROVIDER", raising=False)
+    monkeypatch.setenv("ROUTERAIRU_API_KEY", "sk-1")
+    monkeypatch.delenv("PROXYAPI_KEY", raising=False)
+    assert vg.provider_name() == "routerai"
+
+    monkeypatch.delenv("ROUTERAIRU_API_KEY")
+    monkeypatch.setenv("PROXYAPI_KEY", "sk-2")
+    assert vg.provider_name() == "proxyapi"          # остаётся способ из урока
+
+    monkeypatch.setenv("VIDEO_PROVIDER", "routerai")  # ручной выбор сильнее
+    assert vg.provider_name() == "routerai"
+
+
+def test_missing_key_is_explained(monkeypatch):
+    monkeypatch.delenv("ROUTERAIRU_API_KEY", raising=False)
+    monkeypatch.delenv("VIDEO_PROVIDER", raising=False)
+    monkeypatch.delenv("PROXYAPI_KEY", raising=False)
+    with pytest.raises(vg.VideoError, match="ROUTERAIRU_API_KEY"):
+        vg.api_key("routerai")
+
+
+def test_model_can_be_overridden(monkeypatch, creds):
+    assert vg.model_for("routerai") == vg.DEFAULT_MODEL
+    monkeypatch.setenv("VIDEO_MODEL", "openai/sora-2-pro")
+    assert vg.model_for("routerai") == "openai/sora-2-pro"
 
 
 # --------------------------------------------------------------- генерация
 
-def test_create_receives_lesson_parameters():
-    c = fake_client()
-    run(c, "мой промпт", seconds="4", size="1280x720")
-    sent = c.videos.created[0]
-    assert sent["prompt"] == "мой промпт"
-    assert sent["seconds"] == "4"          # задание требует проверить 4 секунды
-    assert sent["size"] == "1280x720"
-    assert sent["model"] == vg.DEFAULT_MODEL
+def test_request_carries_task_parameters(creds):
+    api = FakeApi()
+    run(api, seconds=4, model="google/veo-3.1-fast", aspect_ratio="16:9", resolution="720p")
+    sent = api.created[0]
+    assert sent["duration"] == 4          # задание требует проверить 4 секунды
+    assert sent["model"] == "google/veo-3.1-fast"
+    assert sent["aspect_ratio"] == "16:9"
+    assert sent["resolution"] == "720p"
+    assert sent["prompt"] == "тестовый промпт"
 
 
-def test_polls_until_completed():
-    c = fake_client(statuses=("queued", "queued", "in_progress", "completed"))
-    res = run(c)
-    assert res.video_id == "vid_abc123"
-    assert res.statuses[0] == "queued" and res.statuses[-1] == "completed"
-    assert "in_progress" in res.statuses
+def test_polls_until_completed(creds):
+    api = FakeApi(statuses=("pending", "pending", "processing", "completed"))
+    res = run(api)
+    assert res.statuses[0] == "pending" and res.statuses[-1] == "completed"
+    assert "processing" in res.statuses
     assert res.polls == 3
+    assert res.cost == 43.78
+    assert res.download_url.endswith("content?index=0")
 
 
-def test_progress_callback_receives_updates():
+def test_progress_callback_sees_every_status(creds):
     seen = []
-    c = fake_client(statuses=("queued", "in_progress", "completed"))
-    run(c, on_progress=lambda s, p, e: seen.append((s, p)))
-    assert seen[0][0] == "queued"
-    assert seen[-1][0] == "completed"
-    assert seen[-1][1] == 100
+    run(FakeApi(), on_progress=lambda s, e: seen.append(s))
+    assert seen[0] == "pending" and seen[-1] == "completed"
 
 
-@pytest.mark.parametrize("status", ["failed", "cancelled", "error"])
-def test_failure_statuses_raise(status):
-    c = fake_client(statuses=("queued", status))
+@pytest.mark.parametrize("status", ["failed", "cancelled", "rejected"])
+def test_failure_statuses_raise(creds, status):
     with pytest.raises(vg.VideoError, match=status):
-        run(c)
+        run(FakeApi(statuses=("pending", status)))
 
 
-def test_timeout(monkeypatch):
-    c = fake_client(statuses=("queued",) * 50)
+def test_unknown_status_is_not_swallowed(creds):
+    with pytest.raises(vg.VideoError, match="Неизвестный статус"):
+        run(FakeApi(statuses=("pending", "странное-слово")))
+
+
+def test_timeout(creds, monkeypatch):
     ticks = iter(range(0, 100_000, 200))
     monkeypatch.setattr(vg.time, "perf_counter", lambda: next(ticks))
     with pytest.raises(vg.VideoError, match="не завершилась"):
-        run(c, timeout_s=900)
+        run(FakeApi(statuses=("pending",) * 50), timeout_s=900)
 
 
-def test_missing_id():
-    c = fake_client()
-    c.videos.create = lambda **kw: SimpleNamespace(status="queued")
+def test_missing_id(creds):
+    def api(url, key, payload=None, method="GET", timeout=60):
+        return {"status": "pending"}
     with pytest.raises(vg.VideoError, match="идентификатор"):
-        run(c)
+        run(api)
 
 
-def test_create_error_is_explained():
-    err = RuntimeError("boom")
-    err.status_code = 402
-    c = fake_client(fail_on_create=err)
-    with pytest.raises(vg.VideoError, match="баланс"):
-        run(c)
+def test_done_without_url_is_an_error(creds):
+    with pytest.raises(vg.VideoError, match="ссылки на файл нет"):
+        run(FakeApi(statuses=("pending", "completed"), urls=[]))
 
 
 @pytest.mark.parametrize("code,fragment", [
-    (401, "PROXYAPI_KEY"), (402, "баланс"), (404, "BASE_URL"), (429, "подождать"),
+    (401, "ROUTERAIRU_API_KEY"), (402, "средств"), (404, "модель"),
+    (422, "параметры"), (429, "подождать"),
 ])
-def test_error_hints(code, fragment):
-    exc = RuntimeError("x")
-    exc.status_code = code
-    assert fragment in vg._explain(exc)
+def test_http_errors_are_explained(code, fragment):
+    assert fragment in vg._explain(code, "{}")
 
 
 # --------------------------------------------------------------- скачивание
 
-def test_download_saves_mp4(tmp_path):
-    c = fake_client()
-    res = run(c)
-    path = vg.download_video(res, tmp_path, "видео: тест/1", client=c)
+def test_download_saves_mp4(creds, tmp_path):
+    api = FakeApi()
+    res = run(api)
+    path = vg.download_video(res, tmp_path, "видео: тест/1", key="k", opener=fake_opener())
     assert path.suffix == ".mp4"
     for ch in ':<>"/\\|?*':
-        assert ch not in path.name        # запрещённые в Windows символы вычищены
-    assert path.read_bytes().startswith(b"\x00\x00\x00\x18ftyp")   # сигнатура MP4
+        assert ch not in path.name          # запрещённые в Windows символы вычищены
+    assert path.read_bytes()[4:8] == b"ftyp"
     assert res.size_bytes > 0
 
 
-def test_download_rejects_empty_file(tmp_path):
-    c = fake_client(content=b"")
-    res = run(c)
+def test_download_rejects_empty_file(creds, tmp_path):
+    res = run(FakeApi())
     with pytest.raises(vg.VideoError, match="пустой"):
-        vg.download_video(res, tmp_path, "x", client=c)
+        vg.download_video(res, tmp_path, "x", key="k", opener=fake_opener(b""))
 
 
-def test_report_saved_next_to_video(tmp_path):
-    c = fake_client()
-    res = run(c, "промпт для отчёта")
-    vg.download_video(res, tmp_path, "клип", client=c)
-    report = vg.save_report(res, tmp_path)
-    import json
-    data = json.loads(report.read_text(encoding="utf-8"))
+def test_download_rejects_non_mp4(creds, tmp_path):
+    """Если вместо файла пришла страница с ошибкой, это должно быть видно сразу."""
+    res = run(FakeApi())
+    with pytest.raises(vg.VideoError, match="не похоже на MP4"):
+        vg.download_video(res, tmp_path, "x", key="k", opener=fake_opener(b"<html>404</html>"))
+
+
+def test_report_saved_next_to_video(creds, tmp_path):
+    res = run(FakeApi(), prompt="промпт для отчёта", seconds=4)
+    vg.download_video(res, tmp_path, "клип", key="k", opener=fake_opener())
+    data = json.loads(vg.save_report(res, tmp_path).read_text(encoding="utf-8"))
     assert data["prompt"] == "промпт для отчёта"
-    assert data["seconds"] == "4" and data["file"] == "клип.mp4"
+    assert data["seconds"] == 4 and data["file"] == "клип.mp4"
     assert data["statuses"][-1] == "completed"
+    assert data["provider"] == "routerai"
+    assert data["cost_credits"] == 43.78
 
 
-# --------------------------------------------------------------- промпты и прогресс-бар
+# --------------------------------------------------------------- деньги и промпты
+
+def test_credits_are_read(creds):
+    assert vg.credits(key="k", request=FakeApi()) == pytest.approx(109.5)
+
+
+def test_credits_failure_does_not_stop_work(creds):
+    """Остаток — справочная величина: если сервис не ответил, генерация всё равно идёт."""
+    def boom(*a, **k):
+        raise vg.VideoError("HTTP 500")
+    assert vg.credits(key="k", request=boom) is None
+
 
 def test_prompts_are_own_not_the_expert_example():
     assert len(vg.PROMPTS) >= 3
@@ -174,59 +233,76 @@ def test_find_prompt():
         vg.find_prompt("нет")
 
 
-def test_progress_bar_rendering():
-    assert "  0%" in vg.render_bar("queued", 0, 1)
-    assert "100%" in vg.render_bar("completed", None, 40)     # готово = полная полоса
-    mid = vg.render_bar("in_progress", 50, 20)
-    assert "█" in mid and "·" in mid and "in_progress" in mid
+def test_progress_bar_reflects_stage():
+    assert " 25%" in vg.render_bar("pending", 1)
+    assert " 60%" in vg.render_bar("processing", 10)
+    assert "100%" in vg.render_bar("completed", 20)
+    mid = vg.render_bar("processing", 10)
+    assert "█" in mid and "·" in mid
 
 
 # --------------------------------------------------------------- test.py
 
-def test_check_access_without_key(monkeypatch, capsys):
-    monkeypatch.delenv("PROXYAPI_KEY", raising=False)
-    assert check.check_access() == 2
-    assert "НЕ ЗАДАН" in capsys.readouterr().out
-
-
-def test_check_access_with_client(monkeypatch, capsys):
-    monkeypatch.setenv("PROXYAPI_KEY", "sk-test")
-    assert check.check_access(client=fake_client()) == 0
-    assert "сервис доступен" in capsys.readouterr().out
-
-
-def test_show_status(capsys):
-    c = fake_client(statuses=("completed", "completed"))
-    assert check.show_status("vid_abc123", client=c) == 0
+def test_show_status_running(creds, capsys):
+    api = FakeApi(statuses=("pending", "pending"))
+    assert check.show_status("vid-1", request=api, key="k") == 0
     out = capsys.readouterr().out
-    assert "vid_abc123" in out and "completed" in out
+    assert "vid-1" in out and "pending" in out and "--watch" in out
 
 
-def test_watch_downloads_when_ready(tmp_path, capsys):
-    c = fake_client(statuses=("queued", "in_progress", "completed"))
-    rc = check.watch("vid_abc123", tmp_path, client=c, interval=0, sleep=lambda s: None)
+def test_show_status_done(creds, capsys):
+    api = FakeApi(statuses=("completed", "completed"))
+    assert check.show_status("vid-1", request=api, key="k") == 0
+    out = capsys.readouterr().out
+    assert "файл готов" in out and "--download" in out
+
+
+def test_watch_downloads_when_ready(creds, tmp_path, capsys):
+    api = FakeApi(statuses=("pending", "processing", "completed"))
+    rc = check.watch("vid-1", tmp_path, request=api, key="k", interval=0,
+                     sleep=lambda s: None, opener=fake_opener())
     assert rc == 0
     files = list(tmp_path.glob("*.mp4"))
     assert len(files) == 1 and files[0].stat().st_size > 0
     assert "Путь статусов" in capsys.readouterr().out
 
 
-def test_watch_reports_failure(tmp_path, capsys):
-    c = fake_client(statuses=("queued", "failed"))
-    assert check.watch("vid", tmp_path, client=c, interval=0, sleep=lambda s: None) == 1
+def test_watch_reports_failure(creds, tmp_path):
+    api = FakeApi(statuses=("pending", "failed"))
+    assert check.watch("vid-1", tmp_path, request=api, key="k", interval=0,
+                       sleep=lambda s: None) == 1
 
 
-def test_list_jobs(capsys):
-    assert check.list_jobs(client=fake_client()) == 0
-    assert "vid_abc123" in capsys.readouterr().out
+def test_download_ready_video(creds, tmp_path, capsys):
+    api = FakeApi(statuses=("completed", "completed"))
+    assert check.download("vid-1", tmp_path, request=api, key="k", opener=fake_opener()) == 0
+    assert list(tmp_path.glob("*.mp4"))
+    assert "сохранено" in capsys.readouterr().out
+
+
+def test_download_refuses_unfinished(creds, tmp_path, capsys):
+    api = FakeApi(statuses=("pending", "pending"))
+    assert check.download("vid-1", tmp_path, request=api, key="k") == 1
+    assert "ещё не готово" in capsys.readouterr().err
 
 
 # --------------------------------------------------------------- CLI
 
-def test_cli_list_and_dry_run(capsys, monkeypatch):
-    monkeypatch.setenv("PROXYAPI_KEY", "sk-test")
+def test_cli_list(creds, capsys):
     assert vg.main(["--list"]) == 0
-    assert "certificates" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "certificates" in out and "sora-2-pro" in out
+
+
+def test_cli_dry_run_spends_nothing(creds, capsys):
     assert vg.main(["--dry-run", "--seconds", "4"]) == 0
     out = capsys.readouterr().out
-    assert '"seconds": "4"' in out and "деньги не потрачены" in out
+    assert '"duration": 4' in out and "деньги не потрачены" in out
+    assert vg.DEFAULT_MODEL in out
+
+
+def test_cli_check_shows_credits(creds, monkeypatch, capsys):
+    monkeypatch.setattr(vg, "credits", lambda key=None: 109.5)
+    assert vg.main(["--check"]) == 0
+    out = capsys.readouterr().out
+    assert "109.5 кредитов" in out and "routerai" in out
