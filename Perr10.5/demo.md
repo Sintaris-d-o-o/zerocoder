@@ -6,7 +6,7 @@
 |---|---|
 | Редактор n8n | <https://sintaition.sintaris.net> |
 | Вебхук цепочки | `POST https://sintaition.sintaris.net/webhook/zerocoder-autopost` |
-| Канал с постами | <https://t.me/bussness_automation> |
+| Канал с постами | <https://t.me/business_ai_automate> |
 
 Вход в редактор — почта `info@sintaris.net`, пароль лежит на сервере в `~/n8n-new/.env`
 (строка `N8N_OWNER_PASSWORD`). В открытый доступ пароль не выкладывается: у владельца
@@ -29,7 +29,7 @@ curl -X POST https://sintaition.sintaris.net/webhook/zerocoder-autopost \
 
 ```json
 {"ok": true, "published": true, "message_id": 4,
- "url": "https://t.me/bussness_automation/4"}
+ "url": "https://t.me/business_ai_automate/4"}
 ```
 
 То же самое скриптом из задания:
@@ -51,9 +51,12 @@ N8N_POST_WEBHOOK=https://sintaition.sintaris.net/webhook/zerocoder-autopost \
 | 1 | Контейнер n8n со статусом Running (`docker ps`) | `results/screenshots/0-n8n-docker.png` |
 | 2 | Схема цепочки целиком | `results/screenshots/1-n8n-workflow-telegram-posting.png` |
 | 3 | Executions со статусом Success (запуск №4) | `results/screenshots/2-n8n-execution-telegram-posting.png` |
-| 4 | Опубликованный пост в Telegram | `results/screenshots/3-n8n-message-telegram-posting.png`, живая ссылка — <https://t.me/bussness_automation/4> |
+| 4 | Опубликованный пост в Telegram | `results/screenshots/3-n8n-message-telegram-posting.png`, живая ссылка — <https://t.me/business_ai_automate/4> |
 
 Пятый пункт — файл `main.py` — уже в папке задания.
+
+Канал был переименован уже после того, как эти скриншоты сняли: на них ещё видно
+старое имя `bussness_automation`, актуальный адрес канала — `business_ai_automate`.
 
 ## Если что-то не работает
 
