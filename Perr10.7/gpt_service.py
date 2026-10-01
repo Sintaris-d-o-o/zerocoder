@@ -134,13 +134,19 @@ def build_messages(vacancy: str, resume: str, candidate: str = "") -> list[dict[
     ]
 
 
+class MissingKeyError(RuntimeError):
+    """Ключа нет — повторять запрос бессмысленно."""
+
+
 def _default_caller(messages: list[dict[str, str]], model: str) -> str:
     """Единственное место, где сервис ходит в сеть."""
     from openai import OpenAI
 
     key = os.getenv("OPENAI_API_KEY", "")
     if not key:
-        raise SystemExit("В .env нет OPENAI_API_KEY")
+        # Не SystemExit: Streamlit на нём молча обрывает страницу, и пользователь
+        # не видит ни ошибки, ни балла по формуле.
+        raise MissingKeyError("в .env нет OPENAI_API_KEY")
     client = OpenAI(api_key=key, timeout=TIMEOUT_S, max_retries=1)
     response = client.chat.completions.create(
         model=model,
@@ -169,7 +175,7 @@ def assess(vacancy: str, resume: str, candidate: str = "", *,
             raw = caller(messages, model)
         except Exception as exc:                      # сеть, лимиты, ключ
             last_error = f"{type(exc).__name__}: {exc}"
-            if attempt < retries:
+            if attempt < retries and not isinstance(exc, MissingKeyError):
                 time.sleep(min(2 ** attempt, 8))
                 continue
             break
