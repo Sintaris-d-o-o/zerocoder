@@ -1,0 +1,35 @@
+~/cli_practice $ pwd
+/c/Users/souls/cli_practice
+~/cli_practice $ ls -a
+.
+..
+.config
+.venv
+README.txt
+app
+logs
+~/cli_practice $ ls -R app logs .config
+.config:
+
+app:
+main.py
+
+logs:
+app.log
+~/cli_practice $ cat README.txt
+Учебный проект Zerocoder 1.4: CLI и логирование в Python. Скрипт app/main.py пишет журнал в logs/app.log.
+~/cli_practice $ cat logs/app.log
+2026-10-02 21:24:42,576 | INFO     | main | Приложение запущено
+2026-10-02 21:24:42,576 | WARNING  | main | Значение x=150 выше порога 100
+2026-10-02 21:24:42,577 | ERROR    | main | Ошибка деления: 10 / 0
+Traceback (most recent call last):
+  File "C:\Users\souls\cli_practice\app\main.py", line 39, in divide
+    return a / b
+           ~~^~~
+ZeroDivisionError: division by zero
+2026-10-02 21:24:42,578 | INFO     | main | Приложение завершено
+~/cli_practice $ grep -c "^20" logs/app.log
+4
+~/cli_practice $ grep -E "WARNING|ERROR" logs/app.log
+2026-10-02 21:24:42,576 | WARNING  | main | Значение x=150 выше порога 100
+2026-10-02 21:24:42,577 | ERROR    | main | Ошибка деления: 10 / 0

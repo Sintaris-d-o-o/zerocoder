@@ -1,0 +1,94 @@
+~/cli_practice $ python -m venv .venv
+~/cli_practice $ source .venv/Scripts/activate
+(.venv) ~/cli_practice $ which python
+/c/Users/souls/cli_practice/.venv/Scripts/python
+(.venv) ~/cli_practice $ python --version
+Python 3.14.3
+(.venv) ~/cli_practice $ python app/main.py
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Users\souls\AppData\Local\Python\pythoncore-3.14-64\Lib\logging\__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\souls\AppData\Local\Python\pythoncore-3.14-64\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode characters in position 44-53: character maps to <undefined>
+Call stack:
+  File "C:\Users\souls\cli_practice\app\main.py", line 52, in <module>
+    main()
+  File "C:\Users\souls\cli_practice\app\main.py", line 45, in main
+    logger.info("\u041f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u0435 \u0437\u0430\u043f\u0443\u0449\u0435\u043d\u043e")
+Message: '\u041f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u0435 \u0437\u0430\u043f\u0443\u0449\u0435\u043d\u043e'
+Arguments: ()
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Users\souls\AppData\Local\Python\pythoncore-3.14-64\Lib\logging\__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\souls\AppData\Local\Python\pythoncore-3.14-64\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode characters in position 44-51: character maps to <undefined>
+Call stack:
+  File "C:\Users\souls\cli_practice\app\main.py", line 52, in <module>
+    main()
+  File "C:\Users\souls\cli_practice\app\main.py", line 46, in main
+    check_value(150)
+  File "C:\Users\souls\cli_practice\app\main.py", line 30, in check_value
+    logger.warning("\u0417\u043d\u0430\u0447\u0435\u043d\u0438\u0435 x=%s \u0432\u044b\u0448\u0435 \u043f\u043e\u0440\u043e\u0433\u0430 %s", x, THRESHOLD)
+Message: '\u0417\u043d\u0430\u0447\u0435\u043d\u0438\u0435 x=%s \u0432\u044b\u0448\u0435 \u043f\u043e\u0440\u043e\u0433\u0430 %s'
+Arguments: (150, 100)
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Users\souls\cli_practice\app\main.py", line 37, in divide
+    return a / b
+           ~~^~~
+ZeroDivisionError: division by zero
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\souls\AppData\Local\Python\pythoncore-3.14-64\Lib\logging\__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\souls\AppData\Local\Python\pythoncore-3.14-64\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode characters in position 44-49: character maps to <undefined>
+Call stack:
+  File "C:\Users\souls\cli_practice\app\main.py", line 52, in <module>
+    main()
+  File "C:\Users\souls\cli_practice\app\main.py", line 47, in main
+    divide(10, 0)
+  File "C:\Users\souls\cli_practice\app\main.py", line 39, in divide
+    logger.exception("\u041e\u0448\u0438\u0431\u043a\u0430 \u0434\u0435\u043b\u0435\u043d\u0438\u044f: %s / %s", a, b)
+Message: '\u041e\u0448\u0438\u0431\u043a\u0430 \u0434\u0435\u043b\u0435\u043d\u0438\u044f: %s / %s'
+Arguments: (10, 0)
+--- Logging error ---
+Traceback (most recent call last):
+  File "C:\Users\souls\AppData\Local\Python\pythoncore-3.14-64\Lib\logging\__init__.py", line 1154, in emit
+    stream.write(msg + self.terminator)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\souls\AppData\Local\Python\pythoncore-3.14-64\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode characters in position 44-53: character maps to <undefined>
+Call stack:
+  File "C:\Users\souls\cli_practice\app\main.py", line 52, in <module>
+    main()
+  File "C:\Users\souls\cli_practice\app\main.py", line 48, in main
+    logger.info("\u041f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u0435 \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043d\u043e")
+Message: '\u041f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u0435 \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043d\u043e'
+Arguments: ()
+(.venv) ~/cli_practice $ deactivate
+~/cli_practice $ which python
+/c/Users/souls/AppData/Local/Microsoft/WindowsApps/python
+~/cli_practice $ ls -a
+.
+..
+.config
+.venv
+README.txt
+app
+logs

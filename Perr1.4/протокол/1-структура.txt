@@ -1,0 +1,30 @@
+/c/Проекты/workspace/sintaris-d-o-o/zerocoder $ cd ~
+~ $ pwd
+/c/Users/souls
+~ $ mkdir cli_practice
+~ $ cd cli_practice
+~/cli_practice $ mkdir app logs .config
+~/cli_practice $ touch README.txt app/main.py
+~/cli_practice $ pwd
+/c/Users/souls/cli_practice
+~/cli_practice $ ls
+README.txt
+app
+logs
+~/cli_practice $ ls -a
+.
+..
+.config
+README.txt
+app
+logs
+~/cli_practice $ ls -R
+.:
+README.txt
+app
+logs
+
+./app:
+main.py
+
+./logs:
