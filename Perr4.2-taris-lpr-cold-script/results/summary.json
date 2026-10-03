@@ -1,0 +1,12 @@
+{
+ "model": "gpt-4o-mini",
+ "steps": 66,
+ "new_api_calls": 19,
+ "segments": 5,
+ "avatars": 3,
+ "hypotheses": 5,
+ "questions": 10,
+ "companies": 5,
+ "lpr_cells": 3,
+ "script_stages": 11
+}
