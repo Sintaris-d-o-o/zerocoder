@@ -10,19 +10,17 @@
 | Готовый текст ответа | [ответ-для-отправки.md](ответ-для-отправки.md) |
 | Dockerfile, docker-compose, скрипты выкатки, журнал `git pull` | [results/выдержки-деплой.md](results/выдержки-деплой.md) |
 | Локальный Flask-проект | [../Perr10.2/](../Perr10.2/) — запуск по [../Perr10.2/demo.md](../Perr10.2/demo.md), можно повторить на своём компьютере без ключей (`app.py --demo`) |
-| Сервис на VPS | [../Perr7.1/02-развертывание.md](../Perr7.1/02-развертывание.md) |
-| Службы в фоне | [../Perr10.4/results/services.txt](../Perr10.4/results/services.txt) |
-| n8n в Docker | [../Perr10.5/results/screenshots/0-n8n-docker.png](../Perr10.5/results/screenshots/0-n8n-docker.png) |
+| Сервис на VPS dev2null.de (папка, venv, порт, `nohup`) | [../Perr7.1/02-развертывание.md](../Perr7.1/02-развертывание.md) |
 
 Доступ к серверам проверяющему не выдаём: там работают клиентские службы.
 
 ## Если потребуют живые скриншоты (по желанию владельца)
 
-Все команды только читают состояние и ничего не меняют:
+На VPS dev2null.de (`ssh stas@dev2null.de`, по ключу). Все команды только читают состояние и ничего не меняют:
 
 1. Файлы на сервере: `ls -la /opt/taris-docker/ /opt/taris-docker/app/src | head -30`
 2. Образ и контейнеры: `sudo docker images | grep taris-vps` и `sudo docker ps | grep taris-vps`
 3. Сайт: `curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8090/`
-4. Службы в фоне: `systemctl --user list-units 'taris*'` (на домашнем сервере)
+4. Сервис в фоне: `ss -ltnp | grep 8098` и `ls ~inna/perr71-stt/`
 
 Перед отправкой закрыть на кадрах IP-адреса, имена пользователей и токены.
