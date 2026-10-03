@@ -1,0 +1,19 @@
+~/cli_practice $ python -m venv .venv
+~/cli_practice $ source .venv/Scripts/activate
+(.venv) ~/cli_practice $ which python
+/c/Users/souls/cli_practice/.venv/Scripts/python
+(.venv) ~/cli_practice $ python --version
+Python 3.14.3
+(.venv) ~/cli_practice $ python app/main.py
+2026-10-02 21:24:42,576 | INFO     | main | Приложение запущено
+2026-10-02 21:24:42,576 | WARNING  | main | Значение x=150 выше порога 100
+2026-10-02 21:24:42,577 | ERROR    | main | Ошибка деления: 10 / 0
+Traceback (most recent call last):
+  File "C:\Users\souls\cli_practice\app\main.py", line 39, in divide
+    return a / b
+           ~~^~~
+ZeroDivisionError: division by zero
+2026-10-02 21:24:42,578 | INFO     | main | Приложение завершено
+(.venv) ~/cli_practice $ deactivate
+~/cli_practice $ which python
+/c/Users/souls/AppData/Local/Microsoft/WindowsApps/python

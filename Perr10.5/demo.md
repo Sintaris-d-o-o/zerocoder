@@ -44,17 +44,19 @@ N8N_POST_WEBHOOK=https://sintaition.sintaris.net/webhook/zerocoder-autopost \
 
 ## Скриншоты для отчёта
 
-Задание просит пять вещей. Четыре из них — снимки экрана, их нужно сделать вручную.
-Класть в `Perr10.5/results/screenshots/`.
+Задание просит пять вещей. Все пять готовы и лежат в `Perr10.5/results/screenshots/`.
 
-| # | Что снять | Где это открыть |
+| # | Что снято | Файл |
 |---|---|---|
-| 1 | Контейнер n8n со статусом Running | Docker Desktop, либо на сервере `docker ps` — вывод уже сохранён в `results/n8n-состояние.txt` |
-| 2 | Схема цепочки целиком | <https://sintaition.sintaris.net> → Workflows → «Zerocoder 10.5 — Автопостинг в Telegram» |
-| 3 | Executions со статусом Success | там же → вкладка Executions, запуск №4 |
-| 4 | Опубликованный пост | <https://t.me/business_ai_automate/4> |
+| 1 | Контейнер n8n со статусом Running (`docker ps`) | `results/screenshots/0-n8n-docker.png` |
+| 2 | Схема цепочки целиком | `results/screenshots/1-n8n-workflow-telegram-posting.png` |
+| 3 | Executions со статусом Success (запуск №4) | `results/screenshots/2-n8n-execution-telegram-posting.png` |
+| 4 | Опубликованный пост в Telegram | `results/screenshots/3-n8n-message-telegram-posting.png`, живая ссылка — <https://t.me/business_ai_automate/4> |
 
 Пятый пункт — файл `main.py` — уже в папке задания.
+
+Канал был переименован уже после того, как эти скриншоты сняли: на них ещё видно
+старое имя `bussness_automation`, актуальный адрес канала — `business_ai_automate`.
 
 ## Если что-то не работает
 
