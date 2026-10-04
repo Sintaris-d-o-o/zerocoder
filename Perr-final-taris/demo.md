@@ -3,7 +3,7 @@
 ## Что получает проверяющий
 
 1. **Текст проекта** — [02-описание-проекта.md](02-описание-проекта.md), открыт в этом
-   репозитории. Ссылка: https://github.com/Sintaris-d-o-o/zerocoder/tree/main/Perr-final-TARIS
+   репозитории. Ссылка: https://github.com/Sintaris-d-o-o/zerocoder/tree/main/Perr-final-taris
 2. **Доступ к живому Taris** — выдаёт автор проекта лично. Ни ссылки, ни логина с паролем
    в этом репозитории нет и не будет.
 
